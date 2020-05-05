@@ -1,0 +1,30 @@
+C51 COMPILER V9.59.0.0   INTERFACE                                                         04/11/2019 11:55:27 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE INTERFACE
+OBJECT MODULE PLACED IN .\Objects\interface.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE User\interface.c OMF2 ROM(COMPACT) OPTIMIZE(8,SPEED) BROWSE INCDIR(.\Use
+                    -r;.\User\Drive) DEBUG PRINT(.\Listings\interface.lst) TABS(2) OBJECT(.\Objects\interface.obj)
+
+line level    source
+
+   1          
+   2          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   ----    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

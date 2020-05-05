@@ -1,0 +1,1 @@
+"User\kt_0646m.c" OMF2 ROM(COMPACT) OPTIMIZE (8,SPEED) BROWSE INCDIR(.\User;.\User\Drive) DEBUG PRINT(.\Listings\kt_0646m.lst) OBJECT(.\Objects\kt_0646m.obj)

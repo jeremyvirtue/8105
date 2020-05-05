@@ -1,0 +1,444 @@
+C51 COMPILER V9.53.0.0   LCDDIS                                                            04/28/2020 09:40:50 PAGE 1   
+
+
+C51 COMPILER V9.53.0.0, COMPILATION OF MODULE LCDDIS
+OBJECT MODULE PLACED IN .\Objects\LcdDis.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE User\LcdDis.c OMF2 ROM(COMPACT) OPTIMIZE(8,SPEED) BROWSE INCDIR(.\User;.
+                    -\User\Drive) DEBUG PRINT(.\Listings\LcdDis.lst) OBJECT(.\Objects\LcdDis.obj)
+
+line level    source
+
+   1          #include "LcdDis.h"
+   2          #include "Lcd.h"
+   3          #include "UHF.h"
+   4          #include "System.h" 
+   5          #include "kt_0646m.h"
+   6          #include "KeyBoard.h"
+   7          #include "ADC.h"
+   8          #include "RCC.h"
+   9          
+  10          void ChannelDis(void)
+  11          {
+  12   1              u8 ch;
+  13   1              if(u_dat.ab)
+  14   1              {
+  15   2                      ch = u_dat.channel + CHMAX;
+  16   2                      ShowChar(LCD_DIGITAL_1,CHAR_B);
+  17   2                      if(ch == 100)
+  18   2                              ShowChar(LCD_DIGITAL_2,CHAR__1);
+  19   2                      else
+  20   2                              ShowChar(LCD_DIGITAL_2,CHAR__);
+  21   2                      ShowChar(LCD_DIGITAL_3,ch%100/10);
+  22   2                      ShowChar(LCD_DIGITAL_4,ch%10); 
+  23   2                              
+  24   2              }
+  25   1              else
+  26   1              {
+  27   2                      ShowChar(LCD_DIGITAL_1,CHAR_A);
+  28   2                      ShowChar(LCD_DIGITAL_2,CHAR__);
+  29   2                      ShowChar(LCD_DIGITAL_3,u_dat.channel%100/10);
+  30   2                      ShowChar(LCD_DIGITAL_4,u_dat.channel%10);
+  31   2              }
+  32   1      }
+  33          
+  34          void OffDis(void)
+  35          {
+  36   1              ShowChar(LCD_DIGITAL_1,CHAR_XX);
+  37   1              ShowChar(LCD_DIGITAL_2,CHAR_0);
+  38   1              ShowChar(LCD_DIGITAL_3,CHAR_F);
+  39   1              ShowChar(LCD_DIGITAL_4,CHAR_F);
+  40   1      }
+  41          
+  42          void SetDis(void)
+  43          {
+  44   1              ShowChar(LCD_DIGITAL_1,CHAR_5);
+  45   1              ShowChar(LCD_DIGITAL_2,CHAR_E);
+  46   1              ShowChar(LCD_DIGITAL_3,CHAR_L);
+  47   1              ShowChar(LCD_DIGITAL_4,CHAR_XX);
+  48   1      }
+  49          
+  50          void OkDis(void)
+  51          {
+  52   1              ShowChar(LCD_DIGITAL_1,CHAR_XX);
+  53   1              ShowChar(LCD_DIGITAL_2,CHAR_0);
+  54   1              ShowChar(LCD_DIGITAL_3,CHAR_k);
+C51 COMPILER V9.53.0.0   LCDDIS                                                            04/28/2020 09:40:50 PAGE 2   
+
+  55   1              ShowChar(LCD_DIGITAL_4,CHAR_XX);
+  56   1      }
+  57          
+  58          void IdDis(void)
+  59          {
+  60   1              ShowChar(LCD_DIGITAL_1,CHAR_XX);
+  61   1              ShowChar(LCD_DIGITAL_2,CHAR_1);
+  62   1              ShowChar(LCD_DIGITAL_3,CHAR_d);
+  63   1              ShowChar(LCD_DIGITAL_4,CHAR_XX);
+  64   1      }
+  65          
+  66          void VolDis(void)
+  67          {
+  68   1              ShowChar(LCD_DIGITAL_1,CHAR_U);
+  69   1              ShowChar(LCD_DIGITAL_2,CHAR__);
+  70   1              ShowChar(LCD_DIGITAL_3,CHAR_0);
+  71   1              ShowChar(LCD_DIGITAL_4,u_dat.vol);
+  72   1      }
+  73          
+  74          void EqDis(void)
+  75          {
+  76   1              ShowChar(LCD_DIGITAL_1,CHAR_E);
+  77   1              ShowChar(LCD_DIGITAL_2,CHAR_C);
+  78   1              ShowChar(LCD_DIGITAL_3,CHAR__);
+  79   1              ShowChar(LCD_DIGITAL_4,u_dat.eq);
+  80   1      }
+  81          
+  82          
+  83          void LockLconDis(void)
+  84          {
+  85   1              if(u_dat.id)
+  86   1                      ShowIco(LCD_ICON_LOCK, SET);
+  87   1              else
+  88   1                      ShowIco(LCD_ICON_LOCK, RESET);
+  89   1      }
+  90          
+  91          void MuteLconDis(void)//亮关灭开
+  92          {
+  93   1              if(u_dat.automute)
+  94   1                      ShowIco(LCD_ICON_SIGNAL,RESET);
+  95   1              else
+  96   1                      ShowIco(LCD_ICON_SIGNAL,SET);
+  97   1      }
+  98          
+  99          void AutoMuteSwDis(void)
+ 100          {
+ 101   1              if(u_dat.automute)
+ 102   1              {
+ 103   2                      ShowChar(LCD_DIGITAL_1,CHAR_A);
+ 104   2                      ShowChar(LCD_DIGITAL_2,CHAR_0);
+ 105   2                      ShowChar(LCD_DIGITAL_3,CHAR_n);
+ 106   2                      ShowChar(LCD_DIGITAL_4,CHAR_XX);
+ 107   2              }
+ 108   1              else
+ 109   1              {
+ 110   2                      ShowChar(LCD_DIGITAL_1,CHAR_A);
+ 111   2                      ShowChar(LCD_DIGITAL_2,CHAR_0);
+ 112   2                      ShowChar(LCD_DIGITAL_3,CHAR_F);
+ 113   2                      ShowChar(LCD_DIGITAL_4,CHAR_F);
+ 114   2              }
+ 115   1      }
+ 116          
+C51 COMPILER V9.53.0.0   LCDDIS                                                            04/28/2020 09:40:50 PAGE 3   
+
+ 117          void CheckDis(void)
+ 118          {
+ 119   1              Sdata.check = ~Sdata.check;
+ 120   1              if(Sdata.check)
+ 121   1              {
+ 122   2                      VolDis();
+ 123   2                      ShowIco(LCD_ICON_DB,SET);
+ 124   2              }
+ 125   1              else
+ 126   1              {
+ 127   2                      ChannelDis();
+ 128   2                      ShowIco(LCD_ICON_DB,RESET);
+ 129   2              }
+ 130   1      }
+ 131           
+ 132          /*开机显示，100ms进入一次*/
+ 133          void StartDis(void)
+ 134          {
+ 135   1              static u8 xdata num = 0;
+ 136   1              if(Sdata.state == START)
+ 137   1              {
+ 138   2                      num++;
+ 139   2                      switch(num)
+ 140   2                      {
+ 141   3                              case 1:
+ 142   3                                      IO_Initailize();
+ 143   3                                      POWER = 1;
+ 144   3                                      KeyInit();
+ 145   3                                      LcdInit(); 
+ 146   3                                      AD_Init(CH7_P30);  
+ 147   3                                       
+ 148   3                                      ShowChar(LCD_DIGITAL_1,CHAR_U);
+ 149   3                                      ShowChar(LCD_DIGITAL_2,CHAR_H);
+ 150   3                                      ShowChar(LCD_DIGITAL_3,CHAR_F);
+ 151   3                                      ShowChar(LCD_DIGITAL_4,CHAR_XX);
+ 152   3                              break;
+ 153   3                              case 10:
+ 154   3                                      ShowChar(LCD_DIGITAL_1,CHAR_XX);
+ 155   3                                      ShowChar(LCD_DIGITAL_2,CHAR_XX);
+ 156   3                                      ShowChar(LCD_DIGITAL_3,CHAR_XX);
+ 157   3                                      ShowChar(LCD_DIGITAL_4,CHAR_H);
+ 158   3                              break;
+ 159   3                              case 12:
+ 160   3                                      ShowChar(LCD_DIGITAL_1,CHAR_XX);
+ 161   3                                      ShowChar(LCD_DIGITAL_2,CHAR_XX);
+ 162   3                                      ShowChar(LCD_DIGITAL_3,CHAR_H);
+ 163   3                                      ShowChar(LCD_DIGITAL_4,CHAR_0); 
+ 164   3                              break;
+ 165   3                              case 14:
+ 166   3                                      ShowChar(LCD_DIGITAL_1,CHAR_XX);
+ 167   3                                      ShowChar(LCD_DIGITAL_2,CHAR_H);
+ 168   3                                      ShowChar(LCD_DIGITAL_3,CHAR_0);
+ 169   3                                      ShowChar(LCD_DIGITAL_4,CHAR_1); 
+ 170   3                              break;
+ 171   3                              case 16:
+ 172   3                                      ShowChar(LCD_DIGITAL_1,CHAR_H);
+ 173   3                                      ShowChar(LCD_DIGITAL_2,CHAR_0);
+ 174   3                                      ShowChar(LCD_DIGITAL_3,CHAR_1);
+ 175   3                                      ShowChar(LCD_DIGITAL_4,CHAR_XX);         
+ 176   3                                       
+ 177   3                              break;
+ 178   3                              case 18:
+C51 COMPILER V9.53.0.0   LCDDIS                                                            04/28/2020 09:40:50 PAGE 4   
+
+ 179   3                                      num = 0;
+ 180   3                                      KT0646mInit(); 
+ 181   3                                      SysState(READY);
+ 182   3                              break;
+ 183   3                      }
+ 184   2              }
+ 185   1      }
+ 186          
+ 187           void RailDis(void)
+ 188           {
+ 189   1              static u8 xdata num = 0;
+ 190   1              if(Sdata.state == RAIL_DIS)
+ 191   1              {
+ 192   2                      num++;
+ 193   2                      switch(num)
+ 194   2                      {       
+ 195   3                              case 1:
+ 196   3                                      ShowChar(LCD_DIGITAL_1,CHAR_XX);
+ 197   3                                      ShowChar(LCD_DIGITAL_2,CHAR_XX);
+ 198   3                                      ShowChar(LCD_DIGITAL_3,CHAR_XX);
+ 199   3                                      ShowChar(LCD_DIGITAL_4,CHAR_XX);
+ 200   3                              break;
+ 201   3                              case 2:
+ 202   3                                      ShowChar(LCD_DIGITAL_1,CHAR__);
+ 203   3                                      ShowChar(LCD_DIGITAL_2,CHAR_XX);
+ 204   3                                      ShowChar(LCD_DIGITAL_3,CHAR_XX);
+ 205   3                                      ShowChar(LCD_DIGITAL_4,CHAR_XX);        
+ 206   3                              break;
+ 207   3                              case 5:
+ 208   3                                      ShowChar(LCD_DIGITAL_1,CHAR__);
+ 209   3                                      ShowChar(LCD_DIGITAL_2,CHAR__);
+ 210   3                                      ShowChar(LCD_DIGITAL_3,CHAR_XX);
+ 211   3                                      ShowChar(LCD_DIGITAL_4,CHAR_XX);        
+ 212   3                              break;
+ 213   3                              case 9:
+ 214   3                                      ShowChar(LCD_DIGITAL_1,CHAR__);
+ 215   3                                      ShowChar(LCD_DIGITAL_2,CHAR__);
+ 216   3                                      ShowChar(LCD_DIGITAL_3,CHAR__);
+ 217   3                                      ShowChar(LCD_DIGITAL_4,CHAR_XX);        
+ 218   3                              break;
+ 219   3                              case 12:
+ 220   3                                      ShowChar(LCD_DIGITAL_1,CHAR__);
+ 221   3                                      ShowChar(LCD_DIGITAL_2,CHAR__);
+ 222   3                                      ShowChar(LCD_DIGITAL_3,CHAR__);
+ 223   3                                      ShowChar(LCD_DIGITAL_4,CHAR__);         
+ 224   3                              break;
+ 225   3                              case 15:
+ 226   3                                      num = 0;
+ 227   3                                      SysState(SET_OK);
+ 228   3                              break;
+ 229   3                      }
+ 230   2              }
+ 231   1       }
+ 232           
+ 233          
+ 234          /**/
+ 235          void BatRead(void)
+ 236          {
+ 237   1              static u8 twbat;
+ 238   1              u16 bat_v;
+ 239   1              if(Sdata.state != SHUTDOWN && Sdata.state != START )
+ 240   1              {
+C51 COMPILER V9.53.0.0   LCDDIS                                                            04/28/2020 09:40:50 PAGE 5   
+
+ 241   2                      if(!LINE_EN)
+ 242   2                      {
+ 243   3                              bat_v = Adc_Read();
+ 244   3              //              ShowNumber(bat_v);
+ 245   3              //              bat_v = (bat_v*11)/62; 
+ 246   3                              if(bat_v > 3352) //4.0
+ 247   3                              { 
+ 248   4                                      ShowBattery(LCD_BATTERY_4);
+ 249   4                              }
+ 250   3                              else if(bat_v > 3220)//3.8
+ 251   3                              { 
+ 252   4                                      ShowBattery(LCD_BATTERY_3);
+ 253   4                              }
+ 254   3                              else if(bat_v > 3036)//3.6
+ 255   3                              { 
+ 256   4                                      ShowBattery(LCD_BATTERY_2);
+ 257   4                              }
+ 258   3                              else if(bat_v > 2900)//3.5
+ 259   3                              { 
+ 260   4                                      ShowBattery(LCD_BATTERY_1);
+ 261   4                              }
+ 262   3                              else if(bat_v > 2790)//3.3
+ 263   3                              {
+ 264   4                                      twbat = ~twbat;
+ 265   4                                      if(twbat) { 
+ 266   5                                              ShowBattery(LCD_BATTERY_1);     
+ 267   5                                      }
+ 268   4                                      else  
+ 269   4                                              ShowBattery(LCD_BATTERY_0);
+ 270   4                              }
+ 271   3                              else if(bat_v>0)
+ 272   3                              { 
+ 273   4                                      ShowBattery(LCD_BATTERY_0);
+ 274   4                                      SysState(SHUTDOWN);
+ 275   4                              }
+ 276   3                              else
+ 277   3                              { 
+ 278   4                                      KT0646mInit(); 
+ 279   4                              } 
+ 280   3                      }
+ 281   2              
+ 282   2                      else if(LINE_EN)
+ 283   2                      {
+ 284   3                                              bat_v = Adc_Read();
+ 285   3              //              ShowNumber(bat_v);
+ 286   3              //              bat_v = (bat_v*11)/62; 
+ 287   3                              if(bat_v > 3352) //4.1
+ 288   3                              { 
+ 289   4                                      ShowBattery(LCD_BATTERY_4);
+ 290   4                              }
+ 291   3                              else if(bat_v > 3220)//3.8
+ 292   3                              { 
+ 293   4                                      twbat = ~twbat;
+ 294   4                                      if(twbat)
+ 295   4                                              ShowBattery(LCD_BATTERY_3);
+ 296   4                                      else
+ 297   4                                              ShowBattery(LCD_BATTERY_4);
+ 298   4                              }
+ 299   3                              else if(bat_v > 3036)//3.6 2格闪烁
+ 300   3                              { 
+ 301   4                                      twbat = ~twbat;
+ 302   4                                      if(twbat)
+C51 COMPILER V9.53.0.0   LCDDIS                                                            04/28/2020 09:40:50 PAGE 6   
+
+ 303   4                                              ShowBattery(LCD_BATTERY_2);
+ 304   4                                      else
+ 305   4                                              ShowBattery(LCD_BATTERY_3);
+ 306   4                              }
+ 307   3                              else if(bat_v > 0)//3.5  1格闪烁
+ 308   3                              { 
+ 309   4                                      twbat = ~twbat;
+ 310   4                                      if(twbat)
+ 311   4                                              ShowBattery(LCD_BATTERY_1);
+ 312   4                                      else
+ 313   4                                              ShowBattery(LCD_BATTERY_2);
+ 314   4                              }  
+ 315   3                              else
+ 316   3                              { 
+ 317   4                                      KT0646mInit(); 
+ 318   4                              } 
+ 319   3                      }
+ 320   2              }
+ 321   1      }       
+ 322          
+ 323          u8 tw_time;
+ 324          void TwinkleDis(void)
+ 325          {
+ 326   1              static u8 num = 0;  
+ 327   1              if(tw_time)
+ 328   1              {
+ 329   2                      tw_time--; 
+ 330   2              }
+ 331   1              if(!tw_time)
+ 332   1              {
+ 333   2                      num = ~num;
+ 334   2                      if(Sdata.state == UHF_SET )
+ 335   2                      {  
+ 336   3                              if(num)
+ 337   3                              {
+ 338   4                                      SetDis();
+ 339   4                              }
+ 340   3                              else
+ 341   3                              { 
+ 342   4                                      ShowChar(LCD_DIGITAL_1,CHAR_XX);
+ 343   4                                      ShowChar(LCD_DIGITAL_2,CHAR_XX);
+ 344   4                                      ShowChar(LCD_DIGITAL_3,CHAR_XX);
+ 345   4                                      ShowChar(LCD_DIGITAL_4,CHAR_XX);
+ 346   4                              }
+ 347   3                      }
+ 348   2                      if(Sdata.state == UHF_CH )
+ 349   2                      { 
+ 350   3                              if(num)
+ 351   3                              {
+ 352   4                                      ChannelDis();
+ 353   4                              }
+ 354   3                              else
+ 355   3                              { 
+ 356   4                                      ShowChar(LCD_DIGITAL_1,CHAR_XX);
+ 357   4                                      ShowChar(LCD_DIGITAL_2,CHAR_XX);
+ 358   4                                      ShowChar(LCD_DIGITAL_3,CHAR_XX);
+ 359   4                                      ShowChar(LCD_DIGITAL_4,CHAR_XX);
+ 360   4                              }
+ 361   3                      }
+ 362   2                      if(Sdata.state == SET_ID )
+ 363   2                      { 
+ 364   3                              if(num)
+C51 COMPILER V9.53.0.0   LCDDIS                                                            04/28/2020 09:40:50 PAGE 7   
+
+ 365   3                              {
+ 366   4                                      IdDis();
+ 367   4                              }
+ 368   3                              else
+ 369   3                              { 
+ 370   4                                      ShowChar(LCD_DIGITAL_1,CHAR_XX);
+ 371   4                                      ShowChar(LCD_DIGITAL_2,CHAR_XX);
+ 372   4                                      ShowChar(LCD_DIGITAL_3,CHAR_XX);
+ 373   4                                      ShowChar(LCD_DIGITAL_4,CHAR_XX);
+ 374   4                              }
+ 375   3                      }
+ 376   2              }
+ 377   1      }
+ 378          
+ 379          
+ 380          void AutoMuteDis(void)
+ 381          {
+ 382   1              static u8 xdata a  =0;
+ 383   1              if(u_dat.automute_time>10 && Sdata.state == READY &&u_dat.automute) 
+ 384   1              { 
+ 385   2                      a++;
+ 386   2                      if(a == 1 )
+ 387   2                      {
+ 388   3                              ShowChar(LCD_DIGITAL_1,CHAR_XX);
+ 389   3                              ShowChar(LCD_DIGITAL_2,CHAR_0);
+ 390   3                              ShowChar(LCD_DIGITAL_3,CHAR_0);
+ 391   3                              ShowChar(LCD_DIGITAL_4,CHAR_XX);
+ 392   3                      }
+ 393   2                      else if(a == 2)
+ 394   2                      {
+ 395   3                              ShowChar(LCD_DIGITAL_1,CHAR_XX);
+ 396   3                              ShowChar(LCD_DIGITAL_2,CHAR_XX);                                        
+ 397   3                              ShowChar(LCD_DIGITAL_3,CHAR_XX);
+ 398   3                              ShowChar(LCD_DIGITAL_4,CHAR_XX);
+ 399   3                              a = 0;
+ 400   3                      }       
+ 401   2              }
+ 402   1      }
+ 403          
+ 404          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1227    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =      3    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      3       3
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

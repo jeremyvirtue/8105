@@ -1,0 +1,1 @@
+"User\OS.c" OMF2 ROM(COMPACT) OPTIMIZE (8,SPEED) BROWSE INCDIR(.\User;.\User\Drive) DEBUG PRINT(.\Listings\OS.lst) OBJECT(.\Objects\OS.obj)

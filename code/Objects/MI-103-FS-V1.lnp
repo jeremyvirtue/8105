@@ -1,0 +1,14 @@
+".\Objects\main.obj",
+".\Objects\System.obj",
+".\Objects\Lcd.obj",
+".\Objects\OS.obj",
+".\Objects\KeyBoard.obj",
+".\Objects\kt_0646m.obj",
+".\Objects\UHF.obj",
+".\Objects\LcdDis.obj",
+".\Objects\RCC.obj",
+".\Objects\Flash.obj",
+".\Objects\ADC.obj" 
+TO ".\Objects\MI-103-FS-V1.0" 
+
+PRINT(".\Listings\MI-103-FS-V1.map") REMOVEUNUSED 

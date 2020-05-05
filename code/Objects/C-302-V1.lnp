@@ -1,0 +1,14 @@
+".\Objects\main.obj",
+".\Objects\OS.obj",
+".\Objects\System.obj",
+".\Objects\Lcd.obj",
+".\Objects\UHF.obj",
+".\Objects\kt_0646m.obj",
+".\Objects\KeyBoard.obj",
+".\Objects\LcdDis.obj",
+".\Objects\IrSend.obj",
+".\Objects\Flash.obj",
+".\Objects\RCC.obj" 
+TO ".\Objects\C-302-V1.0-3" 
+
+PRINT(".\Listings\C-302-V1.map") REMOVEUNUSED 

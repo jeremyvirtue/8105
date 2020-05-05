@@ -1,0 +1,406 @@
+C51 COMPILER V9.59.0.0   DSP                                                               04/12/2019 20:20:42 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE DSP
+OBJECT MODULE PLACED IN .\Objects\DSP.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE User\DSP.c OMF2 ROM(COMPACT) OPTIMIZE(8,SPEED) BROWSE INCDIR(.\User;.\Us
+                    -er\Drive) DEBUG PRINT(.\Listings\DSP.lst) TABS(2) OBJECT(.\Objects\DSP.obj)
+
+line level    source
+
+   1          #include "DSP.h"
+   2          #include "KT070xEDrv.h"
+   3          #include "Lcd.h"
+   4          #include "Flash.h"
+   5          volatile u8  dspData;
+   6           u8 Check = 0;
+   7           DSpMode DspMode;
+   8           u8 Musicvalue;
+   9           u8 Micvalue ;
+  10          FlagStatus DspInit(void)
+  11          {
+  12   1        u8 i = 0;  
+  13   1        u8 test1,test2;
+  14   1          DspModeInit();
+  15   1          if(FlashCheck())
+  16   1          {
+  17   2            dspData=1;//      KEY锁标志位
+  18   2            FlashWrite(FLASH_ID_VolCut,VolCutValue);
+  19   2            FlashWrite(FLASH_ID_Music3D,Music3DValue);
+  20   2            FlashWrite(FLASH_ID_Reverb,ReverbValue);
+  21   2            FlashWrite(FLASH_ID_PitchS,PitchSValue);
+  22   2            FlashWrite(FLASH_ID_EQ,EQValue);
+  23   2      //      FlashWrite(FLASH_ID_VolMic,VolMusicValue);
+  24   2            test1 = FlashRead(FLASH_ID_VolMusic);
+  25   2            test2 = FlashRead(FLASH_ID_VolMic);
+  26   2            if((!(test1<=8)) || (!(test2<=8)))
+  27   2            {
+  28   3              FlashWrite(FLASH_ID_VolMic,6);
+  29   3              FlashWrite(FLASH_ID_VolMusic,6);
+  30   3            }
+  31   2            Musicvalue = FlashRead(FLASH_ID_VolMusic);
+  32   2            Micvalue = FlashRead(FLASH_ID_VolMic);
+  33   2            return SET;
+  34   2          }
+  35   1            else
+  36   1          {
+  37   2            FlashWrite(FLASH_ID_MASK,FLASH_MASK);
+  38   2            FlashWrite(FLASH_ID_MASK1,FLASH_MASK);
+  39   2            for(i = 0;i<3;i++)
+  40   2            {
+  41   3              if(KT070xInit())
+  42   3                return SET; 
+  43   3            }
+  44   2            return RESET;
+  45   2          }
+  46   1      
+  47   1      }
+  48          
+  49          void DspModeInit()
+  50          {
+  51   1          DspMode.NullMode = 1;
+  52   1          DspMode.VolCutMode = 0;
+  53   1          DspMode.Music3DMode = 0;
+  54   1          DspMode.ReverbMode = 0;
+C51 COMPILER V9.59.0.0   DSP                                                               04/12/2019 20:20:42 PAGE 2   
+
+  55   1          DspMode.PitchSMode = 0;
+  56   1          DspMode.EQMode = 0;
+  57   1          DspMode.VolMicMode = 0;
+  58   1          DspMode.VolMusicMode = 0; 
+  59   1      }
+  60          /**       消除原声 
+  61          ** @fn      （注意：音源输入需为立体音）       
+  62          **
+  63          ** @brief      消除原声 
+  64          ** 
+  65          ** @param   none
+  66          **
+  67          ** @return  none
+  68          */
+  69          FlagStatus DSPVolCut(void)
+  70          {
+  71   1        static FlagStatus set ;//
+  72   1        Check++;
+  73   1        if(!DspMode.VolCutMode)//设置消除人生模式
+  74   1        {
+  75   2          DspModeInit();//模式初始化
+  76   2          DspMode.VolCutMode = 1;
+  77   2          Check = 1;
+  78   2        }
+  79   1        if(Check == 1)
+  80   1        {
+  81   2          set = VolCutValue|set;//单次开机保存
+  82   2        }
+  83   1        else if(Check>1)
+  84   1        {
+  85   2          if(DspMode.VolCutMode)//检查模式是否匹配
+  86   2          {
+  87   3              if (dspData)
+  88   3            {
+  89   4              dspData=0;      
+  90   4              KT070xVolCut(!set);
+  91   4              set=!set;   
+  92   4              dspData=1;
+  93   4            }
+  94   3          }
+  95   2          else
+  96   2          {
+  97   3            Check = 1;
+  98   3          }
+  99   2        }
+ 100   1         return set;
+ 101   1      }
+ 102          
+ 103          /**       3D
+ 104          *
+ 105          *  
+ 106          *
+ 107          */
+ 108          FlagStatus DSPSet3D(void)
+ 109          {
+ 110   1        static FlagStatus set;
+ 111   1        Check++;
+ 112   1        
+ 113   1        if(!DspMode.Music3DMode)//设置消除人生模式
+ 114   1        {
+ 115   2          DspModeInit();//模式初始化
+ 116   2          Check = 1;
+C51 COMPILER V9.59.0.0   DSP                                                               04/12/2019 20:20:42 PAGE 3   
+
+ 117   2          DspMode.Music3DMode = 1;
+ 118   2        }
+ 119   1        if(Check==1)
+ 120   1        {
+ 121   2          set = Music3DValue|set;//单次开机保存
+ 122   2        }
+ 123   1          else if(Check>1)
+ 124   1        {
+ 125   2          if(DspMode.Music3DMode)//检查模式是否匹配
+ 126   2          {
+ 127   3            if (dspData)
+ 128   3              {
+ 129   4                dspData=0;
+ 130   4                
+ 131   4                KT070xChange3D(!set);
+ 132   4                set = !set;
+ 133   4                dspData=1;
+ 134   4              }
+ 135   3          }
+ 136   2          else
+ 137   2          {
+ 138   3            Check = 1;
+ 139   3          }
+ 140   2        }
+ 141   1        return set;
+ 142   1      }
+ 143          
+ 144          /*混响设置*/
+ 145          
+ 146          u8 DSPSetEcho_Reverb(FlagStatus NewState)
+ 147          {  
+ 148   1        static u8 value = 0;
+ 149   1        Check++;
+ 150   1        if(!DspMode.ReverbMode)//设置消除人生模式
+ 151   1        {
+ 152   2          DspModeInit();//模式初始化
+ 153   2          Check = 1;
+ 154   2          DspMode.ReverbMode = 1;
+ 155   2        }
+ 156   1        if(Check == 1)
+ 157   1        {
+ 158   2          value = ReverbValue|value;
+ 159   2        }
+ 160   1        else if(Check>1)
+ 161   1        {
+ 162   2          if(DspMode.ReverbMode)
+ 163   2          {
+ 164   3            if (dspData)
+ 165   3              {
+ 166   4                dspData=0;
+ 167   4                value = KT070ChangeEcho_Reverb(NewState);
+ 168   4                dspData=1;
+ 169   4              }
+ 170   3          }
+ 171   2        }
+ 172   1        return value;
+ 173   1      }
+ 174          
+ 175          /**       变音调 
+ 176          * set:SET--音调+;RESET--音调-
+ 177          *
+ 178          *
+C51 COMPILER V9.59.0.0   DSP                                                               04/12/2019 20:20:42 PAGE 4   
+
+ 179          */
+ 180          u8 DSPSetPitchShift(FlagStatus SET)
+ 181          {  
+ 182   1        static u8 value = 0;
+ 183   1        Check++;
+ 184   1        if(!DspMode.PitchSMode)//设置音调模式
+ 185   1        {
+ 186   2          DspModeInit();//模式初始化
+ 187   2          Check = 1;
+ 188   2          DspMode.PitchSMode = 1;
+ 189   2        }
+ 190   1        if(Check == 1)
+ 191   1        {
+ 192   2          value = PitchSValue|value;
+ 193   2        }
+ 194   1          else if(Check>1)
+ 195   1        {
+ 196   2          if(DspMode.PitchSMode)
+ 197   2          {
+ 198   3            if (dspData)
+ 199   3            {
+ 200   4              
+ 201   4              dspData=0;    
+ 202   4              
+ 203   4              value = KT070xChangePitchShift(SET);
+ 204   4              
+ 205   4              dspData=1;
+ 206   4              
+ 207   4            }
+ 208   3          }
+ 209   2        }
+ 210   1        return value;
+ 211   1        
+ 212   1      }
+ 213          /**       改变音量 
+ 214          * set:SET--音量 +;RESET--音量 -
+ 215          *
+ 216          *
+ 217          */
+ 218          u8 DSPSetMicVol(FlagStatus set)
+ 219          {
+ 220   1      //  KT070xChangePreVol(set,MIC0);
+ 221   1      //  static u8 Micvalue = 0;
+ 222   1        Check++;
+ 223   1        if(!DspMode.VolMicMode)//设置音调模式
+ 224   1        {
+ 225   2          DspModeInit();//模式初始化
+ 226   2          Check = 1;
+ 227   2          DspMode.VolMicMode = 1;
+ 228   2        }
+ 229   1        if(Check == 1)
+ 230   1        {
+ 231   2          return Micvalue;// = VolMicValue|Micvalue;
+ 232   2        }
+ 233   1            else if(Check>1)
+ 234   1        {
+ 235   2            if(DspMode.VolMicMode)
+ 236   2            {
+ 237   3              if (dspData)
+ 238   3              {
+ 239   4                dspData=0;
+ 240   4                Micvalue = KT070xChangeMicVol(set,Micvalue);
+C51 COMPILER V9.59.0.0   DSP                                                               04/12/2019 20:20:42 PAGE 5   
+
+ 241   4                dspData=1;
+ 242   4              }
+ 243   3            }
+ 244   2        }
+ 245   1      
+ 246   1        return Micvalue;
+ 247   1      }
+ 248          
+ 249          
+ 250          /*Music音量*/
+ 251          u8 DSPSetMusicVol(FlagStatus set)
+ 252          {
+ 253   1        Check++;
+ 254   1        if(!DspMode.VolMusicMode)//设置音调模式
+ 255   1        {
+ 256   2          DspModeInit();//模式初始化
+ 257   2          Check = 1;
+ 258   2          DspMode.VolMusicMode = 1;
+ 259   2        }
+ 260   1        if(Check == 1)
+ 261   1        {
+ 262   2          return Musicvalue ;//= FlashRead(FLASH_ID_VolMusic);
+ 263   2        }
+ 264   1            else if(Check>1)
+ 265   1        {
+ 266   2            if(DspMode.VolMusicMode)
+ 267   2            {
+ 268   3              if (dspData)
+ 269   3              {
+ 270   4                dspData=0;
+ 271   4                Musicvalue = KT070xChangeMusicVol(set,Musicvalue);//
+ 272   4                dspData=1;
+ 273   4              }
+ 274   3            }
+ 275   2        }
+ 276   1      
+ 277   1        return Musicvalue;
+ 278   1      }
+ 279          
+ 280          void KTFlashStop()
+ 281          {
+ 282   1        FlashWrite(FLASH_ID_VolMic,Micvalue);
+ 283   1        
+ 284   1        FlashWrite(FLASH_ID_VolMusic,Musicvalue);
+ 285   1      }
+ 286          
+ 287          
+ 288          /**       改变EQ 
+ 289          * set:SET--音量 +;RESET--音量 -
+ 290          *
+ 291          *
+ 292          */
+ 293          u8 DSPSetEQ(FlagStatus set,DSPSoundSource source)
+ 294          {
+ 295   1         static u8 Value = 0;
+ 296   1          Check++;
+ 297   1        if(!DspMode.EQMode)//设置音调模式
+ 298   1        {
+ 299   2          DspModeInit();//模式初始化
+ 300   2          Check = 1;
+ 301   2          DspMode.EQMode = 1;
+ 302   2        }
+C51 COMPILER V9.59.0.0   DSP                                                               04/12/2019 20:20:42 PAGE 6   
+
+ 303   1        if(Check == 1)//第一次按下查看当前数值
+ 304   1        {
+ 305   2          Value = EQValue|Value;
+ 306   2        }
+ 307   1          else if(Check>1)
+ 308   1        {
+ 309   2          if(DspMode.EQMode)
+ 310   2          {
+ 311   3                if (dspData)
+ 312   3                {
+ 313   4                  dspData=0;
+ 314   4                  switch (source)
+ 315   4                  {
+ 316   5                    case DSP_SOUND_SOURCE_MIC:
+ 317   5                    {
+ 318   6                      KT070xChangeEQ(set,EQPTMIC);
+ 319   6                //      ShowNumber(KT070xGetVolLevel(DACLR));
+ 320   6                    }
+ 321   5                      break;
+ 322   5                    case DSP_SOUND_SOURCE_MUSIC:
+ 323   5                    {
+ 324   6                      Value = KT070xChangeEQ(set,EQMUSIC);
+ 325   6                    }
+ 326   5                      break;
+ 327   5                    default:
+ 328   5                      break;
+ 329   5                  }
+ 330   4                  dspData=1;
+ 331   4                }
+ 332   3          }
+ 333   2        }
+ 334   1        return Value;
+ 335   1      }
+ 336          
+ 337          
+ 338          
+ 339          
+ 340          
+ 341          /**       啸叫抑制
+ 342          *
+ 343          *
+ 344          *
+ 345          */
+ 346          void DSPSetHowling(void)
+ 347          {  
+ 348   1        if (dspData)
+ 349   1        {
+ 350   2          dspData=0;
+ 351   2          
+ 352   2          KT070xChangeHowling();
+ 353   2         
+ 354   2          dspData=1;
+ 355   2        }
+ 356   1      }
+ 357          
+ 358          void CheckEmpty()
+ 359          {
+ 360   1        Check = 0;
+ 361   1      }
+ 362          
+ 363          
+ 364          
+C51 COMPILER V9.59.0.0   DSP                                                               04/12/2019 20:20:42 PAGE 7   
+
+ 365          
+ 366          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    721    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     10       3
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,1915 @@
+C51 COMPILER V9.59.0.0   KT070XEDRV                                                        04/12/2019 20:18:31 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE KT070XEDRV
+OBJECT MODULE PLACED IN .\Objects\KT070xEDrv.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE User\KT070xEDrv.c OMF2 ROM(COMPACT) OPTIMIZE(8,SPEED) BROWSE INCDIR(.\Us
+                    -er;.\User\Drive) DEBUG PRINT(.\Listings\KT070xEDrv.lst) TABS(2) OBJECT(.\Objects\KT070xEDrv.obj)
+
+line level    source
+
+   1          ///****************************************************************************
+   2          //  File Name: KT_WirelessMicRxdrv.c
+   3          //  Function:  KT Wireless Mic Receiver Products Driver For Customer
+   4          ///****************************************************************************
+   5          //  Ver V2.01       add small signal xpandor    2018.8.30
+   6          
+   7          ///****************************************************************************
+   8          /************************INCLUDES ************************/
+   9          
+  10          #include "KT070xEDrv.h"
+  11          #include "Lcd.h"
+  12          #include <intrins.h>
+  13          #include "App.h"
+  14          #include "Flash.h"
+  15          /*-------------------------------- IIC-----------------------------------*/
+  16          
+  17          
+  18          #define SCL    P41
+  19          
+  20          #define SDA    P42
+  21          
+  22          
+  23          #define SCL_OUT  GPIO_SET(xP4MDL,GPIO_OP,1)
+  24          
+  25          #define SDA_IN   GPIO_SET(xP4MDL,GPIO_OI,2)
+  26          #define SDA_OUT  GPIO_SET(xP4MDL,GPIO_OP,2)
+  27          
+  28          
+  29          #define DEVICE_ADDR_CODEC   0x20
+  30          #define DEVICE_ADDR_BIST    0XB6 //7'5B
+  31          #define DEVICE_ADDR_OTP     0XA4 //7'52
+  32          
+  33          #define DEVICE_DSP0_ADDR     0XB0    // KT070x
+  34          EchoRevebbMode EchoSetRevebbMode;
+  35          
+  36          bit dspState=0;
+  37          void EaOff(void)
+  38          {
+  39   1        dspState=1;
+  40   1      //  TR0=0;
+  41   1      //  TF0=0;
+  42   1      //  ET0=0;
+  43   1      //  EA=0;
+  44   1      }
+  45          
+  46          void EaOn(void)
+  47          {
+  48   1        dspState=0;
+  49   1      //  TR0=1;
+  50   1      //  TF0=1;
+  51   1      //  ET0=1;
+  52   1      //  EA=1;
+  53   1      }
+  54          
+C51 COMPILER V9.59.0.0   KT070XEDRV                                                        04/12/2019 20:18:31 PAGE 2   
+
+  55          static void DSPBusDelay(void  )
+  56          {
+  57   1        u8 i;
+  58   1        for(i=0;i<=55;i++)
+  59   1        {
+  60   2         _nop_();
+  61   2        }
+  62   1        
+  63   1      }
+  64          
+  65          /*        ×ÜÏß¿ªÊ¼
+  66          * 
+  67          * 
+  68          * 
+  69          */
+  70          static void DSPBusStart(void)
+  71          {
+  72   1        SCL_OUT;    
+  73   1        SDA_OUT;
+  74   1        
+  75   1        DSPBusDelay();DSPBusDelay();
+  76   1        SDA = 1;
+  77   1        DSPBusDelay();DSPBusDelay();
+  78   1        SCL = 1;
+  79   1        DSPBusDelay();DSPBusDelay();
+  80   1        SDA = 0;
+  81   1        DSPBusDelay();DSPBusDelay();
+  82   1        SCL = 0;
+  83   1        DSPBusDelay();DSPBusDelay();
+  84   1      }
+  85          
+  86          /*        ×ÜÏß·¢ËÍ×Ö½ÚÊý¾Ý
+  87          * 
+  88          * 
+  89          * 
+  90          */
+  91          static void DSPTxByte(u8 senddata)
+  92          {
+  93   1        u8 i;
+  94   1        for (i=0;i<8;i++)
+  95   1        { 
+  96   2         DSPBusDelay();
+  97   2         if ((senddata & 0x80) != 0x80)
+  98   2          SDA = 0;
+  99   2         else SDA = 1;
+ 100   2          senddata = senddata << 1;
+ 101   2          DSPBusDelay();
+ 102   2          SCL = 1;
+ 103   2          DSPBusDelay();
+ 104   2          SCL = 0;
+ 105   2        }
+ 106   1        DSPBusDelay();
+ 107   1      }
+ 108          /*        ×ÜÏß½ÓÊÕ×Ö½ÚÊý¾Ý
+ 109          * 
+ 110          * 
+ 111          * 
+ 112          */
+ 113          static u8 DSPRxByte(void)
+ 114          {
+ 115   1        u8 i,temp,receivedata=0;
+ 116   1        u16 count=0;
+C51 COMPILER V9.59.0.0   KT070XEDRV                                                        04/12/2019 20:18:31 PAGE 3   
+
+ 117   1        SDA_IN;
+ 118   1        for (i=0;i<8;i++)
+ 119   1        {
+ 120   2           DSPBusDelay();
+ 121   2           SCL = 1;  
+ 122   2           do
+ 123   2           {
+ 124   3             DSPBusDelay();
+ 125   3             count++;
+ 126   3           }while((!SCL)&&(count<100));                   // Wait for KT070x I2C Idle          Add 2018.5.29
+ 127   2           temp = SDA;
+ 128   2           SCL = 0;
+ 129   2           receivedata = receivedata | temp;
+ 130   2           if (i<7)
+ 131   2           {
+ 132   3             receivedata = receivedata << 1;
+ 133   3           }
+ 134   2        }
+ 135   1        DSPBusDelay();
+ 136   1        SDA_OUT;
+ 137   1        return(receivedata);  
+ 138   1      }
+ 139          /*        ×ÜÏßÏìÓ¦
+ 140          * re:SET-ÓÐÓ¦´ð   RESET-ÎÞÓ¦´ð
+ 141          * 
+ 142          * 
+ 143          */
+ 144          static FlagStatus DSPBusAck(void)
+ 145          {
+ 146   1        FlagStatus re=RESET;
+ 147   1        SDA_OUT;
+ 148   1        SDA = 1;
+ 149   1        SDA_IN;
+ 150   1        DSPBusDelay();DSPBusDelay();
+ 151   1        SCL = 1;
+ 152   1        DSPBusDelay();
+ 153   1        re= (FlagStatus)SDA;
+ 154   1        SCL = 0;
+ 155   1        DSPBusDelay();DSPBusDelay();
+ 156   1          SDA_OUT;
+ 157   1        return !re;
+ 158   1      }
+ 159          /*        ×ÜÏßÖ÷»úÏìÓ¦
+ 160          * 
+ 161          * 
+ 162          * 
+ 163          */
+ 164          static void DSPMaskerAck(void)
+ 165          {
+ 166   1        SCL_OUT;
+ 167   1        SDA_OUT;
+ 168   1        SDA = 0;
+ 169   1        DSPBusDelay();DSPBusDelay();
+ 170   1        SCL = 1;
+ 171   1        DSPBusDelay();DSPBusDelay();
+ 172   1        SCL = 0;
+ 173   1        DSPBusDelay();DSPBusDelay();
+ 174   1        SDA = 1;
+ 175   1      }
+ 176          /*        ×ÜÏßÖ÷»ú²»ÏìÓ¦
+ 177          * 
+ 178          * 
+C51 COMPILER V9.59.0.0   KT070XEDRV                                                        04/12/2019 20:18:31 PAGE 4   
+
+ 179          * 
+ 180          */
+ 181          static void DSPMaskerNoAck(void)
+ 182          {
+ 183   1        SCL_OUT;
+ 184   1        SDA_OUT;
+ 185   1        SDA = 1;
+ 186   1        DSPBusDelay();DSPBusDelay();
+ 187   1        SCL = 1;
+ 188   1        DSPBusDelay();DSPBusDelay();
+ 189   1        SCL = 0;
+ 190   1        DSPBusDelay();DSPBusDelay();
+ 191   1        SDA = 1;
+ 192   1      }
+ 193          /*        ×ÜÏß½áÊø
+ 194          * 
+ 195          * 
+ 196          * 
+ 197          */
+ 198          static void DSPBusStop(void)
+ 199          {
+ 200   1        SCL_OUT;
+ 201   1        SDA_OUT;
+ 202   1        SCL = 0;
+ 203   1        DSPBusDelay();DSPBusDelay();
+ 204   1        SDA = 0;
+ 205   1        DSPBusDelay();DSPBusDelay();
+ 206   1        SCL = 1;
+ 207   1        DSPBusDelay();DSPBusDelay();
+ 208   1        SDA = 1;
+ 209   1        DSPBusDelay();DSPBusDelay();
+ 210   1      }
+ 211          /*        ×ÜÏßÃ¦¼ì²â
+ 212          * 
+ 213          * 
+ 214          * 
+ 215          */
+ 216          static void DSPBusBusy(void)
+ 217          {
+ 218   1        DSPBusStart();
+ 219   1        DSPTxByte(DEVICE_DSP0_ADDR);              // 
+ 220   1         
+ 221   1        if (DSPBusAck())
+ 222   1        {
+ 223   2          DSPTxByte(0);
+ 224   2           
+ 225   2          if (DSPBusAck())
+ 226   2          {
+ 227   3            DSPTxByte(0);
+ 228   3             
+ 229   3            if (DSPBusAck())
+ 230   3            {
+ 231   4              DSPBusStart();
+ 232   4              DSPTxByte(DEVICE_DSP0_ADDR|0x01);
+ 233   4               
+ 234   4              if (DSPBusAck())
+ 235   4              {
+ 236   5                DSPRxByte();
+ 237   5                DSPMaskerNoAck();
+ 238   5                DSPBusStop();
+ 239   5              }
+ 240   4              else
+C51 COMPILER V9.59.0.0   KT070XEDRV                                                        04/12/2019 20:18:31 PAGE 5   
+
+ 241   4              {
+ 242   5                DSPBusStop();
+ 243   5              }
+ 244   4            }
+ 245   3            else
+ 246   3            {
+ 247   4              DSPBusStop();
+ 248   4            }
+ 249   3          }
+ 250   2          else
+ 251   2          {
+ 252   3            DSPBusStop();
+ 253   3          }     
+ 254   2        }
+ 255   1        else
+ 256   1        {
+ 257   2          DSPBusStop();
+ 258   2        }
+ 259   1      }
+ 260          
+ 261          
+ 262          /*        Éè±¸Ð´Êý¾Ý
+ 263          * Addr:Éè±¸µØÖ·
+ 264          * WData:Êý¾Ý
+ 265          */
+ 266          static  void DSPWrite(u16 Addr, u32 WData)
+ 267           {
+ 268   1        u8 addr1, addr0;
+ 269   1        u8 wdata3, wdata2, wdata1, wdata0;
+ 270   1        EaOff();
+ 271   1        // Check I2C Busy       Add 2019.1.28 for I2C V1E, ×¢Òâ´Ë´¦¿ÉÒÔÓÃº¯ÊýI2C_ReadReg_DW()´úÌæ.
+ 272   1        DSPBusBusy();                  
+ 273   1        
+ 274   1        addr1 = Addr >> 8;
+ 275   1        addr0 = Addr >> 0;
+ 276   1      
+ 277   1        wdata3 = WData >> 24;
+ 278   1        wdata2 = WData >> 16;
+ 279   1        wdata1 = WData >> 8;
+ 280   1        wdata0 = WData >> 0;
+ 281   1        
+ 282   1        DSPBusStart();
+ 283   1        DSPTxByte(DEVICE_DSP0_ADDR);
+ 284   1         
+ 285   1        if (DSPBusAck())
+ 286   1        {
+ 287   2          DSPTxByte(addr1);
+ 288   2           
+ 289   2          if (DSPBusAck())
+ 290   2          {
+ 291   3            DSPTxByte(addr0);
+ 292   3             
+ 293   3            if (DSPBusAck())
+ 294   3            {
+ 295   4              DSPTxByte(wdata3);
+ 296   4               
+ 297   4              if (DSPBusAck())
+ 298   4              {
+ 299   5                DSPTxByte(wdata2);
+ 300   5                 
+ 301   5                if (DSPBusAck())
+ 302   5                {
+C51 COMPILER V9.59.0.0   KT070XEDRV                                                        04/12/2019 20:18:31 PAGE 6   
+
+ 303   6                  DSPTxByte(wdata1);
+ 304   6                   
+ 305   6                  if (DSPBusAck())
+ 306   6                  {
+ 307   7                    DSPTxByte(wdata0);
+ 308   7                    DSPBusAck();
+ 309   7                  }
+ 310   6                  else
+ 311   6                    SCL = 0;      
+ 312   6                }
+ 313   5                else
+ 314   5                  SCL = 0;      
+ 315   5              }
+ 316   4              else
+ 317   4                SCL = 0;      
+ 318   4            }
+ 319   3            else
+ 320   3              SCL = 0;          
+ 321   3          }
+ 322   2          else
+ 323   2            SCL = 0;      
+ 324   2        }
+ 325   1        else
+ 326   1          SCL = 0;
+ 327   1      
+ 328   1        DSPBusStop();
+ 329   1        EaOn();
+ 330   1       }
+ 331          /*        ¶ÁÉè±¸µÄÊý¾Ý
+ 332          * 
+ 333          * Addr:Éè±¸ÉÏµÄ¼Ä´æÆ÷µØÖ·
+ 334          * 
+ 335          */
+ 336           static  u32 DSPRead(u16 Addr)
+ 337           {
+ 338   1        u8 addr1, addr0;
+ 339   1        u8 rdata3, rdata2, rdata1, rdata0;
+ 340   1        u32 RData;  
+ 341   1        EaOff();
+ 342   1        addr1 = Addr >> 8;
+ 343   1        addr0 = Addr >> 0;
+ 344   1        DSPBusStart();
+ 345   1        DSPTxByte(DEVICE_DSP0_ADDR);
+ 346   1         
+ 347   1        if (DSPBusAck())
+ 348   1        {
+ 349   2          DSPTxByte(addr1);
+ 350   2           
+ 351   2          if (DSPBusAck())
+ 352   2          {
+ 353   3            DSPTxByte(addr0);
+ 354   3             
+ 355   3            if (DSPBusAck())
+ 356   3            {
+ 357   4              DSPBusStart();
+ 358   4              DSPTxByte(DEVICE_DSP0_ADDR|0x01);
+ 359   4               
+ 360   4              if (DSPBusAck())
+ 361   4              {
+ 362   5                SDA_IN;
+ 363   5                rdata3 = DSPRxByte();
+ 364   5                DSPMaskerAck();
+C51 COMPILER V9.59.0.0   KT070XEDRV                                                        04/12/2019 20:18:31 PAGE 7   
+
+ 365   5                rdata2 = DSPRxByte();
+ 366   5                DSPMaskerAck();
+ 367   5                rdata1 = DSPRxByte();
+ 368   5                DSPMaskerAck();
+ 369   5                rdata0 = DSPRxByte();
+ 370   5                DSPBusAck();
+ 371   5                DSPBusStop();
+ 372   5                RData = ((u32)rdata3 << 24) | ((u32)rdata2 << 16) | ((u32)rdata1 << 8) | rdata0;
+ 373   5                return(RData);
+ 374   5              }
+ 375   4              else
+ 376   4              {
+ 377   5                DSPBusStop();
+ 378   5                return(0x00);
+ 379   5              }
+ 380   4            }
+ 381   3            else
+ 382   3            {
+ 383   4              DSPBusStop();
+ 384   4              return(0x00);
+ 385   4            }
+ 386   3          }
+ 387   2          else
+ 388   2          {
+ 389   3            DSPBusStop();
+ 390   3            return(0x00);
+ 391   3          }     
+ 392   2        }
+ 393   1        else
+ 394   1        {
+ 395   2          DSPBusStop();
+ 396   2          return(0x00);
+ 397   2        }
+ 398   1        EaOn();
+ 399   1       }
+ 400          
+ 401          /*-------------------------------- IIC END-----------------------------------*/
+ 402          
+ 403          
+ 404          st_MusicDuckingStruct code MusicDucking0 =
+ 405          {
+ 406            Ducking_N18dB,           // The MUSIC Ducking Gain
+ 407            15,                      // ½øÈëÉÁ±ÜÃÅÏÞ The Threshold for enter MUSIC Ducking,  0:-21dB, 1:-22dB...44:-6
+             -5dB
+ 408            15,                      // ÍË³öÉÁ±ÜÃÅÏÞ The Threshold for Out of MUSIC Ducking,  0:-18dB, 1:-19dB...47:-
+             -65dB    
+ 409            5,                       // ½øÈëÉÁ±ÜÊ±¼ä Time delay for enter MUSIC Ducking,  0:250ms, 1:500ms, 2:750ms..
+             -.15:4s
+ 410            1,                       // ÍË³öÉÁ±ÜÊ±¼ä Time delay for Out of MUSIC Ducking,  0:0.08ms, 1:0.17ms, 2:0.34
+             -ms, 3:0.68ms...15:2.1ms
+ 411            5,                       // ÉÁ±Ü»Ö¸´0.5dBµÄÊ±¼ä Time for GainUp(0.5dB),   0~15
+ 412            5,                       // ÉÁ±Ü½øÈë0.5dBµÄÊ±¼ä Time for GainDown(0.5dB),  0~15
+ 413          };
+ 414          
+ 415          /*st_Reverb code Reverb0 = 
+ 416          //{
+ 417          //  254,                     // RoomSize  ¿Õ¼ä´óÐ¡   0~255  0:6.0, 1:6.25, 2:6.5...255:69.75
+ 418          //  108,                     // RevTime   »ìÏìÊ±¼ä   0~255  0:0.1, 1:0.125, 2:0.15...255:6.475
+ 419          //  11,                      // Damping   ×èÄáÏµÊý   0~31   0:0.025, 1:0.05, 2:0.075...31:0.8
+ 420          //  63,                      // Spread    À©É¢ÏµÊý   0~63   0:0.25, 1:0.5, 2:0.75...63:16.0
+ 421          //  
+ 422          //  80,                      // ReverbLevel  »ìÏìÊªÒô±ÈÀý    0:mute,1:-57dB, 2:-56.5dB, 3:-56dB...127:6.0dB
+C51 COMPILER V9.59.0.0   KT070XEDRV                                                        04/12/2019 20:18:31 PAGE 8   
+
+ 423          //  72,                      // EarlyLevel   Ç°ÆÚ·´ÉäÏµÊý   0:0, 1:0.2, 2:0.4...255:51
+ 424          //  128,                     // TailLevel    ºóÆÚ·´ÉäÏµÊý   0:0, 1:0.3, 2:0.6...255:76.5
+ 425          //   
+ 426          //  31,                      // LpfInputband  µÍÍ¨ÂË²¨Æ÷´ø¿í   0:0.125(-3dB@22kHz), 1:0.15, 2:0.175...27:0.
+             -8(-3dB@7kHz...31:0.9(-1.7dB@0Hz)
+ 427          //  16,                      // HpfInputband  ¸ßÍ¨ÂË²¨Æ÷´ø¿í   0:0.125(-3dB@1kHz), 1:0.15, 2:0.175...27:0.8
+             -(-3dB@22kHz...31:0.9(-1.7dB@24kHz)
+ 428          //  1,                       // Lpf_En
+ 429          //  1,                       // Hpf_En
+ 430          //};
+ 431          
+ 432          //st_HowlingCtrlStruct code HowlingNotch = 
+ 433          //{
+ 434          //  0x05,                // Det_Diff_varTH, ¼ì²âÌõ¼þ,Cross_zero  detect error¹ýÁãµã¼ì²âÎó²î. ÖµÔ½Ð¡Ìõ¼þÔ½¿Á
+             -¿Ì,0~15, 1~16Hz
+ 435          //  0x07,                // Det_Peak_varTH, ¼ì²âÌõ¼þ,Howling peak detect error·åÖµ¼ì²âÎó²î. ÖµÔ½Ð¡Ìõ¼þÔ½¿Á¿
+             -Ì,0~15
+ 436          //  0x00,                // Det_Peak_WinT, ¼ì²âÌõ¼þ,Howling peak continuous detect period·åÖµ¼ì²âÖÜÆÚ, Ô½´ó
+             -Ð¥½Ð¼ì²âÌõ¼þÔ½¿Á¿Ì,0~63, 1s~16s
+ 437          //  
+ 438          //  0x00,                // Det_Notch_T, ¿ªÆôÏÝ²¨Æ÷Ìõ¼þ,HowlingNotch continuous detect ThresholdÏÝ²¨Æ÷¼ì²âÖ
+             -ÜÆÚ,ÖµÔ½´ó¿ªÆôÏÝ²¨Æ÷Ìõ¼þÔ½ÑÏ¸ñ,0~15
+ 439          //  0x02,                // Det_Notch_Th, ¿ªÆôÏÝ²¨Æ÷Ìõ¼þ,HowlingNotch detect frequency errÏÝ²¨Æ÷¼ì²âÆµÂÊÎó²
+             -î,ÖµÔ½Ð¡¿ªÆôÏÝ²¨Æ÷Ìõ¼þÔ½ÑÏ¸ñ,0~15, 1~16Hz
+ 440          //  
+ 441          //  0x08,                // AVC_WinT, ÒôÁ¿¿ØÖÆÌõ¼þ, Volume Auto-Gain Ctrl Det Time,×Ô¶¯¿ØÖÆÒôÁ¿¼ì²âÖÜÆÚ,Ô½Ð
+             -¡Ñ¹µÍ/ÊÍ·ÅÒôÁ¿Ô½¿ì. 0~63, 0.25s~16s
+ 442          //  0x04,                // AVC_ReleaseTimN, ÒôÁ¿¿ØÖÆÌõ¼þ,  Á¬ÐøN¸öAVC_WinTÊ±¼äÄÚÃ»ÓÐ¼ì²âµ½Ð¥½Ð·¢Éú£¬Ôò¿ªÊ¼
+             -ÊÍ·ÅÒ»¸öStepÒôÁ¿, 1~16  
+ 443          //  0x02,                // AVC_WinShift, ÒôÁ¿¿ØÖÆÌõ¼þ,Ð¥½ÐÊ±¼äÔÚAVC_WinTÊ±¼äÄÚËùÕ¼°Ù·Ö±ÈÃÅÏÞ, 0~7, {50%,25
+             -%,12.5%,6.25%,3.125%,1.5625%,0.78%,0.39%}
+ 444          //  0x06,                // AVC_AfterNotchN, ¿ªÆôN+1Â·ÏÝ²¨Æ÷ºó¿ªÊ¼Ñ¹µÍÒôÁ¿,0~31, 1~32Â·
+ 445          //  0x03,                // AVC_GainSet, Max volume deep: 0~31, -6dB~-68dB, 2db/Step,    
+ 446          //   
+ 447          //  0x8F,                // NotchDF, The Frequency Val between different Howling Nortch   1:256  ²»Í¬ÏÝ²¨Æ÷
+             -¿ªÆôÆµµã²î 
+ 448          //  0x14,                // NotchQ, The Howling Notch Q Val,    0:5  1:6  2:7...  N:N+5. 
+ 449          //  0x00,                // NotchLife, ÏÝ²¨Æ÷Éú´æÖÜÆÚ The Howling Nortch Life, 0~31, 0:1s, 1:2s, 2:3s...9:1
+             -0s, 10:1min, 11:2min...19:10min, 20:20min...31:130min   
+ 450          //  0x00,                // NotchUpTime, The Howling UpTime/Step,  0~255, 0:1s, 1:2s, 2:3s...255:256s
+ 451          //  0x03,                // NotchDeep, The Howling Nortch Max Deep,  0~15, 0:3dB, 1:6dB, 2:9dB...15:48dB (
+             -3dB/Step)
+ 452          //  0x00,                // NotchInitDeep, The Howling Nortch Init Deep,  0~15, 0:3dB, 1:6dB, 2:9dB...15:48
+             -dB (3dB/Step)
+ 453          //  0x01,                // NotchDownStep, The Howling Nortch Down Step,  0~15, 0:1dB, 1:2dB, 2:3dB...15:1
+             -6dB (1dB/Step)
+ 454          //  
+ 455          //  0x08,                // TotalNotchNum, ÏÝ²¨Æ÷×Ü¸öÊý(¹Ì¶¨+¶¯Ì¬)  TotalNotchNum, 0-31
+ 456          //  0x04,                // FixedNotchNum, ¹Ì¶¨ÏÝ²¨Æ÷¸öÊý           FixedNotchNum, 0-31    
+ 457          
+ 458          //  0x01,                // SaveFixedNotchEn, Ñ§Ï°Êý¾Ý¹Ø»ú±£´æ¿ª¹Ø
+ 459          //  0x01,                // SaveVolumeEn, ÒôÁ¿¹Ø»ú±£´æ¿ª¹Ø
+ 460          //  0x01,                // VolumeCtrlEn, Volume Control SET
+ 461          //};
+ 462          //  PeakNotch = 0,
+ 463          //  LowPass,
+ 464          //  HighPass,
+ 465          //  LowShelf,
+ 466          //  HighShelf
+ 467          //st_EQStruct code EQ_MIC01[5][5] = 
+ 468          //{
+ 469          //  {EQBAND5,62,200,30,PeakNotch},//Á÷ÐÐÄ£Ê½
+C51 COMPILER V9.59.0.0   KT070XEDRV                                                        04/12/2019 20:18:31 PAGE 9   
+
+ 470          //  {EQBAND6,250,200,40,PeakNotch},// 
+ 471          //  {EQBAND7,500,200,30,PeakNotch},// 
+ 472          //  {EQBAND8,1000,200,0,PeakNotch},// 
+ 473          //  {EQBAND9,8000,200,0,PeakNotch},// 
+ 474          //  
+ 475          //  {EQBAND5,62,200,30,PeakNotch},//Ëµ³ªÄ£Ê½
+ 476          //  {EQBAND6,250,200,40,PeakNotch},// 
+ 477          //  {EQBAND7,500,200,30,PeakNotch},// 
+ 478          //  {EQBAND8,1000,200,0,PeakNotch},// 
+ 479          //  {EQBAND9,8000,200,0,PeakNotch},// 
+ 480          //  
+ 481          //  {EQBAND5,62,200,30,PeakNotch},//µçÒôÄ£Ê½
+ 482          //  {EQBAND6,250,200,40,PeakNotch},// 
+ 483          //  {EQBAND7,500,200,30,PeakNotch},// 
+ 484          //  {EQBAND8,1000,200,0,PeakNotch},// 
+ 485          //  {EQBAND9,8000,200,0,PeakNotch},// 
+ 486          
+ 487          //  {EQBAND5,62,200,30,PeakNotch},//ÃñÒ¥Ä£Ê½
+ 488          //  {EQBAND6,250,200,40,PeakNotch},// 
+ 489          //  {EQBAND7,500,200,30,PeakNotch},// 
+ 490          //  {EQBAND8,1000,200,0,PeakNotch},// 
+ 491          //  {EQBAND9,8000,200,0,PeakNotch},// 
+ 492          //  
+ 493          //  {EQBAND5,62,200,30,PeakNotch},//Ò¡¹öÄ£Ê½
+ 494          //  {EQBAND6,250,200,40,PeakNotch},// 
+ 495          //  {EQBAND7,500,200,30,PeakNotch},// 
+ 496          //  {EQBAND8,1000,200,0,PeakNotch},// 
+ 497          //  {EQBAND9,8000,200,0,PeakNotch},// 
+ 498          //  
+ 499          //};
+ 500          */
+ 501          
+ 502          /**       ³õÊ¼»¯
+ 503          ** @fn
+ 504          **
+ 505          ** @brief   ³õÊ¼»¯
+ 506          ** 
+ 507          ** @param   none
+ 508          **
+ 509          ** @return  none
+ 510          */
+ 511          FlagStatus KT070xReadId(void)
+ 512          {
+ 513   1        FlagStatus re =RESET;
+ 514   1        u32 regx;
+ 515   1        regx = DSPRead(0xc3c0); 
+ 516   1      //    ShowNumber(regx>>17);    
+ 517   1        if((regx>>16)==0x4b54)                 // "KT" 
+ 518   1        {  
+ 519   2          regx = DSPRead(0x00b6); 
+ 520   2      //    ShowNumber(regx>>17);      
+ 521   2          if((regx>>16)==0x3145)                 // "1E"
+ 522   2          {
+ 523   3            re=SET;
+ 524   3          }
+ 525   2        }
+ 526   1      //  KT070xMicSet(MICIN0);
+ 527   1        return re;
+ 528   1        
+ 529   1      }
+ 530          
+ 531          
+C51 COMPILER V9.59.0.0   KT070XEDRV                                                        04/12/2019 20:18:31 PAGE 10  
+
+ 532          /**       ÉèÖÃMICÊäÈë
+ 533          ** @fn
+ 534          **
+ 535          ** @brief   
+ 536          ** 
+ 537          ** @param   none
+ 538          **
+ 539          ** @return  none
+ 540          */
+ 541          void KT070xMicSet(MICTypes MICINx)
+ 542          {
+ 543   1        u32 regx;
+ 544   1        regx = DSPRead(AudioPath);
+ 545   1        DSPWrite(AudioPath,(regx&0xFFFFFFC0UL)|MICINx);
+ 546   1      }
+ 547          
+ 548          
+ 549          
+ 550          /**       ÉèÖÃDACÊä³ö
+ 551          ** @fn
+ 552          **
+ 553          ** @brief   
+ 554          ** 
+ 555          ** @param   none
+ 556          **
+ 557          ** @return  none
+ 558          */
+ 559          void KT070xDACOpen(DACOUTTypes DACOutx)                    //
+ 560          {
+ 561   1        u32 regx;
+ 562   1        regx = DSPRead(AudioPath);
+ 563   1        DSPWrite(AudioPath,(regx&0xFFFFF8FFUL)|((u16)DACOutx<<8));
+ 564   1      }
+ 565          
+ 566          
+ 567          
+ 568          
+ 569          /**       ²¥·ÅMP3
+ 570          ** @fn             
+ 571          **
+ 572          ** @brief   MP3 Play     Èç¹ûÓÐMP3ÔÚ²¥·Å£¬µ±Ç°²Ù×÷ÎÞÐ§
+ 573          ** 
+ 574          ** @param   none
+ 575          **
+ 576          ** @return  none
+ 577          */
+ 578          void KT070xMP3Play(FlagStatus NewState,u8 row)
+ 579          {
+ 580   1        u32 regx;
+ 581   1        if (row<64)
+ 582   1        {
+ 583   2          regx = DSPRead(MiscCtrl);
+ 584   2          DSPWrite(MiscCtrl,(regx&0xFFFFFF40UL)|(NewState<<7)|row);    // SET
+ 585   2        }
+ 586   1      }
+ 587          
+ 588          /**       Ç¿ÖÆ²¥·ÅMP3
+ 589          ** @fn             
+ 590          **
+ 591          ** @brief   MP3 BreakPlay     Èç¹ûÎÞMP3ÔÚ²¥·Å£¬ÔòÆô¶¯²¥·Å£¬Èç¹ûÓÐMP3ÔÚ²¥·Å£¬´ò¶Ïµ±Ç°µÄ²¥·Å
+ 592          ** 
+ 593          ** @param   Song_Row²ÎÊý·¶Î§Îª0-63
+C51 COMPILER V9.59.0.0   KT070XEDRV                                                        04/12/2019 20:18:31 PAGE 11  
+
+ 594          **
+ 595          ** @return  none
+ 596          */
+ 597          void KT070xMP3BreakPlay(u8 row)
+ 598          {
+ 599   1        u32 regx;
+ 600   1        if (row<64)
+ 601   1        {
+ 602   2          regx = DSPRead(MiscCtrl);
+ 603   2          DSPWrite(MiscCtrl,(regx&0xFFFFFF80UL)|(1<<6)|row);    // SET
+ 604   2        }
+ 605   1      }
+ 606          
+ 607            
+ 608          /**       Ê¹ÄÜGPIOµÄDebugÒý½ÅÊä³ö¹¦ÄÜ
+ 609          ** @fn
+ 610          **
+ 611          ** @brief   Config GPIO4/GPIO5 As Debug
+ 612          ** 
+ 613          ** @param   none
+ 614          **
+ 615          ** @return  none
+ 616          */
+ 617          void KT070xDebugIO(FlagStatus NewState,GPIOTypedef GPIOx)
+ 618          {
+ 619   1        u32 regx;
+ 620   1        if((GPIOx!=GPIO4)||(GPIOx!=GPIO5))
+ 621   1        {
+ 622   2          return;
+ 623   2        }
+ 624   1        if(NewState==SET)
+ 625   1        {
+ 626   2          regx = DSPRead(MiscCtrl);
+ 627   2          DSPWrite(MiscCtrl,(regx&0xF9FFFFFFUL)|((u32)GPIOx<<21)); 
+ 628   2        }
+ 629   1        else
+ 630   1        {
+ 631   2          regx = DSPRead(MiscCtrl);
+ 632   2          DSPWrite(MiscCtrl,(regx&0xF9FFFFFFUL)); 
+ 633   2        }
+ 634   1      }
+ 635          
+ 636          /**       ÉèÖÃÇ°¼¶PreVolumeÒôÁ¿
+ 637          ** @fn     Volume·¶Î§:0x00~0x7f£¨Mute,-51dB~12dB£¬0.5dB/Step£© 
+ 638          **
+ 639          ** @brief      
+ 640          ** 
+ 641          ** @param   none
+ 642          **
+ 643          ** @return  none
+ 644          */
+ 645          void KT070xSetPreVol(MICTypes MICx,u8 Volume)                 //Vol=0:mute 1:-51dB 2:-50.5dB ...0x7f:12dB 
+             - 0.5dB/Setp
+ 646          {
+ 647   1        u32 regx;
+ 648   1        if(MICx<I2SL)
+ 649   1        {
+ 650   2          regx = DSPRead(ADC_PreVol);
+ 651   2          DSPWrite(ADC_PreVol,(regx&~(0x7fUL<<(MICx<<3)))|((u32)Volume<<(MICx<<3)));
+ 652   2        }
+ 653   1        else
+ 654   1        {
+C51 COMPILER V9.59.0.0   KT070XEDRV                                                        04/12/2019 20:18:31 PAGE 12  
+
+ 655   2          regx = DSPRead(I2S_PreVol);
+ 656   2          DSPWrite(I2S_PreVol,(regx&~(0x7fUL<<(MICx<<3)))|((u32)Volume<<(MICx<<3)));
+ 657   2        }
+ 658   1      }
+ 659          
+ 660          /**       ÉèÖÃÖÐ¼ä¼¶MixVolumeÒôÁ¿
+ 661          ** @fn            Volume·¶Î§:0x00~0x7f£¨Mute,-51dB~12dB£¬0.5dB/Step£©   
+ 662          **
+ 663          ** @brief      
+ 664          ** 
+ 665          ** @param   none
+ 666          **
+ 667          ** @return  none
+ 668          */
+ 669          FlagStatus KT070xSetMixVol(DACTypes DACx,MixerVolType Mixerx,u8 Volume)     // Vol = 0:Mute 1:-51dB 2:-50.
+             -5dB...127:12dB    0.5dB/Step
+ 670          {
+ 671   1        u32 regx;
+ 672   1        if(DACx==DACLR)
+ 673   1        {
+ 674   2          regx = DSPRead(DACLR_Mixer);
+ 675   2          DSPWrite(DACLR_Mixer,(regx&~(0x7fUL<<((Mixerx+1)<<3)))|((u32)Volume<<((Mixerx+1)<<3)));
+ 676   2        }
+ 677   1        if(DACx==DACS)
+ 678   1        {
+ 679   2          regx = DSPRead(DACS_Mixer);
+ 680   2          DSPWrite(DACS_Mixer,(regx&~(0x7fUL<<((Mixerx+1)<<3)))|((u32)Volume<<((Mixerx+1)<<3)));
+ 681   2        }
+ 682   1        return SET;
+ 683   1      }
+ 684          
+ 685          /**       ÉèÖÃºó¼¶PostVolumeÒôÁ¿
+ 686          ** @fn            Volume·¶Î§:0x00~0x7f£¨Mute,-51dB~12dB£¬0.5dB/Step£©   
+ 687          **
+ 688          ** @brief      
+ 689          ** 
+ 690          ** @param   none
+ 691          **
+ 692          ** @return  none
+ 693          */
+ 694          void KT070xSetPostVol(DACTypes DACx,u8 Volume)      // Vol = 0:Mute 1:-51dB 2:-50.5dB...127:12dB    0.5dB/
+             -Step
+ 695          {
+ 696   1        u32 regx;
+ 697   1        if(DACx==DACLR)
+ 698   1        {
+ 699   2          regx = DSPRead(DACLR_Mixer);
+ 700   2          DSPWrite(DACLR_Mixer,(regx&~(0x7fUL))|Volume);    
+ 701   2        }
+ 702   1        if(DACx==DACS)
+ 703   1        {
+ 704   2          regx = DSPRead(DACS_Mixer);
+ 705   2          DSPWrite(DACS_Mixer,(regx&~(0x7fUL))|Volume);
+ 706   2        }
+ 707   1      }
+ 708          
+ 709          /**       ÒÆÆµ¿ª¹Ø£¬ÓÃÓÚÐ¥½ÐÒÖÖÆ
+ 710          ** @fn             
+ 711          **
+ 712          ** @brief   ÒÆÆµ(Ð¥½ÐÒÖÖÆ)   x:-3~-10  3~10
+ 713          ** 
+ 714          ** @param   none
+C51 COMPILER V9.59.0.0   KT070XEDRV                                                        04/12/2019 20:18:31 PAGE 13  
+
+ 715          **
+ 716          ** @return  none
+ 717          */
+ 718          void KT070xSetFreqShift(FlagStatus NewState,int8 x)                    // 
+ 719          {
+ 720   1        u32 regx;
+ 721   1        if((x>0)&&((x>10))||(x<3))
+ 722   1        {
+ 723   2          return;
+ 724   2        }
+ 725   1        if((x<0)&&((x<-10))||(x>-3))
+ 726   1        {
+ 727   2          return;
+ 728   2        }
+ 729   1        if(x<0)
+ 730   1        {
+ 731   2          regx = DSPRead(FreqShiftCtrl0);
+ 732   2          DSPWrite(FreqShiftCtrl0, (regx&~0x1fUL)|((u32)(x+10)<<1)|NewState);
+ 733   2        }
+ 734   1        else                // x>0
+ 735   1        {
+ 736   2          regx = DSPRead(FreqShiftCtrl0);
+ 737   2          DSPWrite(FreqShiftCtrl0, (regx&~0x1fUL)|((u32)(x+5)<<1)|NewState);
+ 738   2        }
+ 739   1      }
+ 740          
+ 741          /**       ÒôÁ¿ÉÁ±Ü
+ 742          ** 
+ 743          ** 
+ 744          ** @brief   ÒôÁ¿ÉÁ±Ü
+ 745          ** 
+ 746          ** @param   
+ 747          **  Gain£ºÒôÁ¿ÉÁ±ÜµÄ´óÐ¡£¬ Ducking_Mute¼´¹Ø±ÕÉÁ±Ü¹¦ÄÜ¡£
+ 748              Det_Vlow£º½øÈëÉÁ±ÜµÄÃÅÏÞ£¬0:-21dB£¬1£º-22dB£¬3:-23dB¡­44:-65dB£¬45:Mute¡£
+ 749              Det_Vhigh£ºÍË³öÒôÁ¿ÉÁ±ÜµÄÃÅÏÞ£¬0:-18dB£¬1£º-19dB£¬3:-20dB¡­47:-65dB£¬ÍÆ¼öDet_Vhigh±ÈDet_Vlow´ó2~3dB  ¡
+             -£
+ 750              Det_Nnoise£º½øÈëÉÁ±ÜÊ±ÑÓÊ±Ê±¼ä£¬0:250ms£¬1:500ms£¬2:750ms¡­15:4s¡£
+ 751              Det_Nsignal£ºÍË³öÉÁ±ÜÊ±ÑÓÊ±Ê±¼ä£¬0:0.08ms£¬1:0.17ms£¬2:0.34ms£¬3:0.68ms£¬4:1.4ms¡­15:2.1s¡£
+ 752              Gainup_win£ºÉÁ±Ü»Ö¸´£¨0.5dB£©ÐèÒªµÄÊ±¼ä£¨ËÙ¶È£©¡£
+ 753              Gaindown_win£ºÉÁ±Ü½øÈë(0.5dB)ÐèÒªµÄÊ±¼ä£¨ËÙ¶È£©¡£
+ 754          ** @return  none
+ 755          */
+ 756          void KT070xSetMusicDuck(FlagStatus NewState,st_MusicDuckingStruct code *p)
+ 757          {
+ 758   1        u32 regx;
+ 759   1        if(NewState==RESET)
+ 760   1        {
+ 761   2          regx = DSPRead(MusicDuckingCtrl0);
+ 762   2          DSPWrite(MusicDuckingCtrl0, (regx&~0x0fUL)|Ducking_0dB);       // 
+ 763   2          return;
+ 764   2        }
+ 765   1        DSPWrite(MusicDuckingCtrl0,((u32)p->Gaindown_win<<28)|((u32)p->Gainup_win<<24)|\
+ 766   1        ((u32)p->Det_Nsignal<<20)|((u32)p->Det_Nnoise<<16)|((u16)p->Det_Vhigh<<10)|\
+ 767   1        ((u16)p->Det_Vlow<<4)|p->Gain);    
+ 768   1      }
+ 769          
+ 770          /**       ÉèÖÃMICÒôÁ¿¼ì²âÌõ¼þ
+ 771          ** @fn
+ 772          **  ½öMIC0,1,2,3ÓÐÐ§
+ 773          ** @brief  ÉèÖÃMICÒôÁ¿¼ì²â
+ 774          ** 
+ 775          ** @param   none
+C51 COMPILER V9.59.0.0   KT070XEDRV                                                        04/12/2019 20:18:31 PAGE 14  
+
+ 776          ** DetWin:0~15
+ 777          ** @return  none
+ 778          */
+ 779          void KT070xSetMICVolumeDet(FlagStatus NewState,MICTypes MICx,u8 DetWin)      // DetWin:0~15,¼ì²âÖÜÆÚ
+ 780          {
+ 781   1        u32 regx;
+ 782   1        if(MICx>MIC3)
+ 783   1        {
+ 784   2          return;
+ 785   2        }
+ 786   1        if(NewState==RESET)
+ 787   1        {
+ 788   2          regx = DSPRead(VolumeDetCtrl0);
+ 789   2          DSPWrite(VolumeDetCtrl0,regx&~(1UL<<MICx+20));       // 
+ 790   2        }
+ 791   1        else
+ 792   1        {
+ 793   2          regx = DSPRead(VolumeDetCtrl1);
+ 794   2          DSPWrite(VolumeDetCtrl1,(regx&~(0x0fUL<<(MICx<<3)))|(u32)DetWin<<(MICx<<3));       // / 
+ 795   2          regx = DSPRead(VolumeDetCtrl0);
+ 796   2          DSPWrite(VolumeDetCtrl0,regx|(1UL<<MICx+20));       // 
+ 797   2        }
+ 798   1      }
+ 799          
+ 800          /**       ÉèÖÃDAC½ÚµãÒôÁ¿¼ì²âÌõ¼þ
+ 801          ** @fn
+ 802          **
+ 803          ** @brief  ÉèÖÃDACÒôÁ¿¼ì²âÃÅÏÞ£¬¿ª¹Ø
+ 804          ** 
+ 805          ** @param   none
+ 806          **
+ 807          ** @return  none
+ 808          */
+ 809          void KT070xSetDACVolumeDet(FlagStatus NewState,DACTypes DACx,u8 DetWin)     // DetWin:0~15,¼ì²âÖÜÆÚ
+ 810          {
+ 811   1        u32 regx;
+ 812   1        if(NewState==RESET)
+ 813   1        {
+ 814   2          regx = DSPRead(VolumeDetCtrl0);
+ 815   2          if(DACx==DACLR)
+ 816   2          {
+ 817   3            DSPWrite(VolumeDetCtrl0,regx&~(1UL<<10));       // 
+ 818   3          }
+ 819   2          if(DACx==DACS)
+ 820   2          {
+ 821   3            DSPWrite(VolumeDetCtrl0,regx&~1UL);       // 
+ 822   3          }
+ 823   2        }
+ 824   1        else
+ 825   1        {
+ 826   2          if(DACx==DACLR)
+ 827   2          {
+ 828   3            regx = DSPRead(VolumeDetCtrl0);
+ 829   3            DSPWrite(VolumeDetCtrl0,regx|1UL<<10);       // 
+ 830   3            regx = DSPRead(VolumeDetCtrl1);
+ 831   3            DSPWrite(VolumeDetCtrl1,(regx&~0x3CUL)|DetWin<<2); // 
+ 832   3          }
+ 833   2          if(DACx==DACS)
+ 834   2          {
+ 835   3            regx = DSPRead(VolumeDetCtrl0);
+ 836   3            DSPWrite(VolumeDetCtrl0,regx|1UL);       // 
+ 837   3            regx = DSPRead(VolumeDetCtrl1);
+C51 COMPILER V9.59.0.0   KT070XEDRV                                                        04/12/2019 20:18:31 PAGE 15  
+
+ 838   3            DSPWrite(VolumeDetCtrl1,(regx&0xFFFF0FFFUL)|(u16)DetWin<<12); // 
+ 839   3          }
+ 840   2        }
+ 841   1      }
+ 842          
+ 843          /**       »ñÈ¡MICÒôÁ¿´óÐ¡
+ 844          ** @fn
+ 845          **  ÐèÒªÏÈÉèÖÃMIC½ÚµãÒôÁ¿¼ì²âÌõ¼þ£¨ÔÚKT070xSetMICVolumeDet()º¯ÊýÖÐÉèÖÃ£©¡£
+ 846          ** @brief   »ñÈ¡MICÒôÁ¿´óÐ¡
+ 847          ** 
+ 848          ** @param   none
+ 849          **
+ 850          ** @return  none
+ 851          */
+ 852          u8 KT070xGetMICVolume(MICTypes MICx)
+ 853          {
+ 854   1        u32 regx;
+ 855   1        if(MICx>MIC3)
+ 856   1        {
+ 857   2          return 0;
+ 858   2        }
+ 859   1        regx = DSPRead(VolumeDetCtrl1);
+ 860   1        return (regx>>((MICx<<3)+4))&0x0F;
+ 861   1      }
+ 862          
+ 863          /**       »ñÈ¡DACÒôÁ¿´óÐ¡
+ 864          ** @fn
+ 865          **
+ 866          ** @brief   »ñÈ¡DACÒôÁ¿´óÐ¡
+ 867          ** ÐèÒªÏÈÉèÖÃDAC½ÚµãÒôÁ¿¼ì²âÌõ¼þ£¨ÔÚSet_MICVolumeDet()º¯ÊýÖÐÉèÖÃ£©¡£
+ 868          ** @param   none
+ 869          **
+ 870          ** @return  none
+ 871          */
+ 872          u8 KT070xGetDACVolume(DACTypes DACx)
+ 873          {
+ 874   1        u32 regx;
+ 875   1        if(DACx==DACLR)
+ 876   1        {
+ 877   2           regx = DSPRead(VolumeDetCtrl0);            
+ 878   2           return (regx>>16)&0x0F;                 // DACLR
+ 879   2        }
+ 880   1        if(DACx==DACS)
+ 881   1        {
+ 882   2           regx = DSPRead(VolumeDetCtrl0);
+ 883   2           return (regx>>6)&0x0F;                  // DACS
+ 884   2        }
+ 885   1        return 0;
+ 886   1      }
+ 887          
+ 888          /**       ÉèÖÃEQ
+ 889          ** @fn
+ 890          **
+ 891          ** @brief   ÉèÖÃEQ(µ¥Ò»Band)
+ 892          ** 
+ 893          ** @param   none
+ 894          **  Freq:(*1Hz) 
+ 895              Qval(*0.001)
+ 896              Gain(*0.1dB)
+ 897          ** @return  none
+ 898          */
+ 899          void KT070xSetEQBand(FlagStatus NewState,EQGroupType Typex,st_EQStruct code *p)  
+C51 COMPILER V9.59.0.0   KT070XEDRV                                                        04/12/2019 20:18:31 PAGE 16  
+
+ 900          {
+ 901   1        u32 Addr;
+ 902   1        u32 regx;
+ 903   1        switch(Typex)
+ 904   1        {
+ 905   2          case  EQMIC01:
+ 906   2          {
+ 907   3            Addr = EQ_MIC01_Band0_Ctrl0 + p->Bandx*2;
+ 908   3            if(SET==NewState)
+ 909   3            {
+ 910   4              DSPWrite(Addr,((u32)p->Freq<<16) + p->Qval); 
+ 911   4              regx = DSPRead(Addr+1);
+ 912   4              DSPWrite(Addr+1,(regx&0xFEF80000UL)|(1UL<<24)|((u32)p->Type<<16)|(u16)p->Gain);
+ 913   4            }       
+ 914   3            else
+ 915   3            {
+ 916   4              regx = DSPRead(Addr+1);
+ 917   4              DSPWrite(Addr+1,regx&~(1UL<<24));
+ 918   4            }
+ 919   3            break;
+ 920   3          }
+ 921   2          case  EQMIC23:
+ 922   2          {
+ 923   3            Addr = EQ_MIC23_Band0_Ctrl0 + p->Bandx*2;
+ 924   3            if(SET==NewState)
+ 925   3            {
+ 926   4              DSPWrite(Addr,((u32)p->Freq<<16) + p->Qval); 
+ 927   4              regx = DSPRead(Addr+1);
+ 928   4              DSPWrite(Addr+1,(regx&0xFEF80000UL)|(1UL<<24)|((u32)p->Type<<16)|(u16)p->Gain);
+ 929   4            }       
+ 930   3            else
+ 931   3            {
+ 932   4              regx = DSPRead(Addr+1);
+ 933   4              DSPWrite(Addr+1,regx&~(1UL<<24));
+ 934   4            }
+ 935   3            break;
+ 936   3          }
+ 937   2          case  EQPTMIC:
+ 938   2          {
+ 939   3            Addr = EQ_PTMIC_Band0_Ctrl0 + p->Bandx*2;
+ 940   3            if(SET==NewState)
+ 941   3            {
+ 942   4              DSPWrite(Addr,((u32)p->Freq<<16) + p->Qval); 
+ 943   4              regx = DSPRead(Addr+1);
+ 944   4              DSPWrite(Addr+1,(regx&0xFEF80000UL)|(1UL<<24)|((u32)p->Type<<16)|(u16)p->Gain);
+ 945   4            }       
+ 946   3            else
+ 947   3            {
+ 948   4              regx = DSPRead(Addr+1);
+ 949   4              DSPWrite(Addr+1,regx&~(1UL<<24));
+ 950   4            }
+ 951   3            break;
+ 952   3          }
+ 953   2          case  EQECHO:
+ 954   2          {
+ 955   3            Addr = EQ_ECHO_Band0_Ctrl0 + p->Bandx*2;
+ 956   3            if(SET==NewState)
+ 957   3            {
+ 958   4              DSPWrite(Addr,((u32)p->Freq<<16) + p->Qval); 
+ 959   4              regx = DSPRead(Addr+1);
+ 960   4              DSPWrite(Addr+1,(regx&0xFEF80000UL)|(1UL<<24)|((u32)p->Type<<16)|(u16)p->Gain);
+ 961   4            }       
+C51 COMPILER V9.59.0.0   KT070XEDRV                                                        04/12/2019 20:18:31 PAGE 17  
+
+ 962   3            else
+ 963   3            {
+ 964   4              regx = DSPRead(Addr+1);
+ 965   4              DSPWrite(Addr+1,regx&~(1UL<<24));
+ 966   4            }
+ 967   3            break;
+ 968   3          }
+ 969   2          case  EQMUSIC:
+ 970   2          {
+ 971   3            Addr = EQ_MUSIC_Band0_Ctrl0 + p->Bandx*2;
+ 972   3            if(SET==NewState)
+ 973   3            {
+ 974   4              DSPWrite(Addr,((u32)p->Freq<<16) + p->Qval); 
+ 975   4              regx = DSPRead(Addr+1);
+ 976   4              DSPWrite(Addr+1,(regx&0xFEF80000UL)|(1UL<<24)|((u32)p->Type<<16)|(u16)p->Gain);
+ 977   4            }       
+ 978   3            else
+ 979   3            {
+ 980   4              regx = DSPRead(Addr+1);
+ 981   4              DSPWrite(Addr+1,regx&~(1UL<<24));
+ 982   4            }
+ 983   3            break;
+ 984   3          }
+ 985   2          case  EQREVERB:
+ 986   2          {
+ 987   3            Addr = EQ_REVERB_Band0_Ctrl0 + p->Bandx*2;
+ 988   3            if(SET==NewState)
+ 989   3            {
+ 990   4              DSPWrite(Addr,((u32)p->Freq<<16) + p->Qval); 
+ 991   4              regx = DSPRead(Addr+1);
+ 992   4              DSPWrite(Addr+1,(regx&0xFEF80000UL)|(1UL<<24)|((u32)p->Type<<16)|(u16)p->Gain);
+ 993   4            }       
+ 994   3            else
+ 995   3            {
+ 996   4              regx = DSPRead(Addr+1);
+ 997   4              DSPWrite(Addr+1,regx&~(1UL<<24));
+ 998   4            }
+ 999   3            break;
+1000   3          }
+1001   2          default:break;
+1002   2        }
+1003   1      }
+1004          
+1005          /**       ÉèÖÃÐ¡ÐÅºÅÑ¹À©
+1006          ** @fn
+1007          **
+1008          ** @brief   SmallSigExpandCtrl
+1009          ** 
+1010          ** @param   none
+1011          **  ExpandKnee£º¹Õµã£º0£º-1dB£¬1£º-2dB¡­74:-75dB.
+1012              ExpandAttackT£ºÒôÁ¿»Ö¸´£¨¹ý³Ì£©Ê±¼ä£º0~15 £¬0£º8us£¬1£º16us£¬2£º32us¡­15£º262ms¡£
+1013              ExpandReleaseT£ºÑ¹µÍÒôÁ¿£¨¹ý³Ì£©Ê±¼ä£º0£º2.05ms£¬1:4.1ms£¬2:8.2ms¡­15£º67.1s
+1014              ExpandSlope£ºÐ¡ÐÅºÅÑ¹Ëõ±ÈÀý£º0£º1.25/1£¬1£º1.5/1£¬2£º2/1£¬3£º3/1£¬4£º 4/1
+1015              ExpandMinGain£ºÏÂ¹Õµã£¨×îµÍÔöÒæ£©£º0£º-1dB  1£º-2dB¡­63£º-64dB
+1016          ** @return  none
+1017          */
+1018          void KT070xSetSmallSigExpand(FlagStatus NewState,st_SmallSigExpand code *p)
+1019          {
+1020   1        u32 regx;
+1021   1        if(NewState==RESET)
+1022   1        {
+1023   2          regx = DSPRead(SmallSigExpandCtrl0);
+C51 COMPILER V9.59.0.0   KT070XEDRV                                                        04/12/2019 20:18:31 PAGE 18  
+
+1024   2          DSPWrite(SmallSigExpandCtrl0, regx&~1UL);       // 
+1025   2          return;
+1026   2        }
+1027   1        DSPWrite(SmallSigExpandCtrl0,((u32)p->ExpandMinGain<<19)|((u32)p->ExpandSlope<<16)|\
+1028   1        ((u16)p->ExpandReleaseT<<12)|((u16)p->ExpandAttackT<<8)|((u16)p->ExpandKnee<<1)|1);    //
+1029   1      }
+1030            
+1031          /***        ÉèÖÃEcho²ÎÊý
+1032          ** @fn
+1033          **
+1034          ** @brief   Echo
+1035          ** 
+1036          ** @param   none
+1037          **   wet_ratio£ºÊªÒô±ÈÀý£º0~127
+1038              loop_ratio£º»·Â·ÔöÒæ£¨Ë¥¼õ³Ì¶È£©£º0~127
+1039              echo_delay£ºÑÓÊ±£º0~127
+1040              ×¢Òâ£ºwet_ratioºÍloop_ratioÔöÒæ½ÏÐ¡£¬Ò»°ãÒªÉèµ½100ÒÔÉÏ²ÅÓÐÐ§¹û¡£
+1041              EchoºÍReverb»¹ÓÐPredelayºÍDrylevelÁ½¸ö¹²ÓÃµÄ²ÎÊý£¬ÔÚº¯ÊýSetEchoReverbPredelay()ÖÐÉèÖÃ¡£
+1042          ** @return  none
+1043          */
+1044          //typedef struct{
+1045          //  u8 wet_ratio,
+1046          //  u8 loop_ratio,
+1047          //  u8 echo_delay,
+1048          //}EchoNumber;
+1049          /*
+1050          void KT070xSetEcho(FlagStatus NewState,u8 wet_ratio,u8 loop_ratio,u8 echo_delay)
+1051          {
+1052            u32 regx;
+1053            if(NewState==RESET)
+1054            {
+1055              regx = DSPRead(EchoConfig);
+1056              DSPWrite(EchoConfig,regx&(~1UL));
+1057              return;
+1058            }
+1059            regx = DSPRead(EchoConfig);
+1060            DSPWrite(EchoConfig,(regx&0x808080FEUL)|((u32)wet_ratio<<24)|((u32)loop_ratio<<16)\
+1061            |((u32)echo_delay<<8)|NewState);
+1062          }*/
+1063          
+1064          void KT070xSetEcho1(FlagStatus NewState,EchoNumber code *pEcho)
+1065          {
+1066   1        u32 regx;
+1067   1        if(NewState==RESET)
+1068   1        {
+1069   2          regx = DSPRead(EchoConfig);
+1070   2          DSPWrite(EchoConfig,regx&(~1UL));
+1071   2          return;
+1072   2        }
+1073   1        regx = DSPRead(EchoConfig);
+1074   1        DSPWrite(EchoConfig,(regx&0x808080FEUL)|((u32)pEcho->wet_ratio<<24)|((u32)pEcho->loop_ratio<<16)\
+1075   1        |((u32)pEcho->echo_delay<<8)|NewState);
+1076   1      }
+1077          
+1078          
+1079          
+1080          
+1081          /**       ÉèÖÃ»ìÏì
+1082          ** @fn
+1083          **
+1084          ** @brief   »ìÏì
+1085          ** 
+C51 COMPILER V9.59.0.0   KT070XEDRV                                                        04/12/2019 20:18:31 PAGE 19  
+
+1086          ** @param   none
+1087          **
+1088              RoomSize£º¿Õ¼ä´óÐ¡
+1089              RevTime£º»ìÏìÊ±¼ä£º 0~255
+1090              Damping£º×èÄáÏµÊý£º0~31
+1091              Spread£ºÀ©É¢ÏµÊý£º0~63
+1092              ReverbLevel£ºÊªÒô±ÈÀý£º0~127
+1093              EarlyLevel£ºÇ°ÆÚ·´Éä£º0~255
+1094              TailLevel£ººóÆÚ·´Éä£º0~255
+1095              LpfInputband£ºµÍÍ¨ÂË²¨Æ÷´ø¿í £º0~31
+1096              Lpf_En£ºµÍÍ¨ÂË²¨Æ÷Ê¹ÄÜ£º
+1097              HpfInputband£º¸ßÍ¨ÂË²¨Æ÷¿ª¹Ø£º0~31
+1098              Hpf_En£º¸ßÍ¨ÂË²¨Æ÷Ê¹ÄÜ£º
+1099              ×¢Òâ£ºReverbºÍEcho»¹ÓÐPredelayºÍDrylevelÁ½¸ö¹²ÓÃµÄ²ÎÊý£¬ÔÚº¯ÊýSetEchoReverbPredelay()ÖÐÉèÖÃ¡£
+1100          ** @return  none
+1101          */
+1102          void KT070xSetReverb(FlagStatus NewState,st_Reverb code *p)
+1103          {
+1104   1        u32 regx;
+1105   1        if(NewState==RESET)
+1106   1        { 
+1107   2          regx = DSPRead(ReverbCtrl0);
+1108   2          DSPWrite(ReverbCtrl0,regx&(~1UL));
+1109   2          return;
+1110   2        }
+1111   1        regx = DSPRead(ReverbCtrl0);
+1112   1        DSPWrite(ReverbCtrl0,(regx&0xE0000002UL)|((u32)p->Damping<<24)|((u32)p->RevTime<<16)\
+1113   1        |((u32)p->RoomSize<<8)|(p->Spread<<2)|NewState);
+1114   1        regx = DSPRead(ReverbCtrl1);
+1115   1        DSPWrite(ReverbCtrl1,(regx&0x000080FFUL)|((u32)p->TailLevel<<24)|((u32)p->EarlyLevel<<16)\
+1116   1        |((u32)p->ReverbLevel<<8));
+1117   1        regx = DSPRead(ReverbCtrl2);
+1118   1        DSPWrite(ReverbCtrl2,(regx&0xFFFF6060UL)|((u32)p->Hpf_En<<15)\
+1119   1        |((u32)p->HpfInputband<<8)|((u32)p->Lpf_En<<7)|(p->LpfInputband));
+1120   1      }
+1121          
+1122          /**       ÉèÖÃ»ìÏì&EchoÔ¤ÑÓÊ±¡¢¸ÉÉù±ÈÀý²ÎÊý
+1123          ** @fn
+1124          **
+1125          ** @brief   Reverb&Echo Predelay,Drylevel
+1126          ** 
+1127          ** @param   none
+1128          **
+1129              Predelay£ºÔ¤ÑÓÊ±:0:1ms£¬1:2ms£¬2£º3ms...63:64ms¡£
+1130              Drylevel£º¸ÉÉù±ÈÀý£º0:Mute£¬1:-51dB£¬2:-50.5dB£¬3:-50dB...127:12dB¡£
+1131          ** @return  none
+1132          */
+1133          void KT070xSetEchoReverbPredelay(EchoReverPublic code *pER)
+1134          {
+1135   1        u32 regx;
+1136   1        regx = DSPRead(ReverbCtrl1);
+1137   1        DSPWrite(ReverbCtrl1,(regx&0xFFFFFF80UL)|pER->Drylevel);
+1138   1        regx = DSPRead(ReverbCtrl2);
+1139   1        DSPWrite(ReverbCtrl2,(regx&0xFFC0FFFFUL)|pER->Predelay);
+1140   1      }
+1141          
+1142          
+1143          /**       ÉèÖÃ±äµ÷
+1144          ** @fn
+1145          **
+1146          ** @brief   ±äµ÷
+1147          ** 
+C51 COMPILER V9.59.0.0   KT070XEDRV                                                        04/12/2019 20:18:31 PAGE 20  
+
+1148          ** @param   none
+1149          ** PitchShiftRatio£º±äµ÷ÏµÊý£º0~2047
+1150          ** @return  none
+1151          */
+1152          void KT070xSetPitchShift(FlagStatus NewState,u16 value)          // PitchShiftRatio:0~2047
+1153          {
+1154   1        u32 regx;
+1155   1        if (value<2047)
+1156   1        {
+1157   2          regx = DSPRead(EffectMiscCtrl0);
+1158   2          if(NewState==RESET)
+1159   2          {
+1160   3            DSPWrite(EffectMiscCtrl0, regx&~(1UL<<15));       //Ê§ÄÜ±äµ÷¹¦ÄÜ
+1161   3          }
+1162   2          else
+1163   2          {
+1164   3            DSPWrite(EffectMiscCtrl0,(regx&0xFFFFF800UL)|(1UL<<15)|(value&0x7FFUL));    //  ÉèÖÃPitchShift Ratio
+1165   3          }
+1166   2        }
+1167   1      }
+1168          
+1169          /**       ÉèÖÃµçÒô
+1170          ** @fn
+1171          **
+1172          ** @brief   µçÒô
+1173          ** 
+1174          ** @param   none
+1175          **
+1176          ** @return  none
+1177          */
+1178          void KT070xSetAutoTune(FlagStatus NewState,TuneTypedef TuneType,TuneMajorTypedef Major)
+1179          {
+1180   1        u32 regx;
+1181   1        if(NewState==RESET)
+1182   1        {
+1183   2          regx = DSPRead(EffectMiscCtrl0);
+1184   2          DSPWrite(EffectMiscCtrl0, regx&~(1UL<<23));       // 
+1185   2          return;
+1186   2        }
+1187   1        regx = DSPRead(EffectMiscCtrl0);  
+1188   1        DSPWrite(EffectMiscCtrl0,(regx&0xFF00FFFFUL)|(1UL<<23)|((u32)TuneType<<20)|((u32)Major<<16));    //  ÉèÖÃ
+             -AutotuneÄ£Ê½,Type,Major
+1189   1      }
+1190          
+1191          /**       ÉèÖÃ3D»·ÈÆÒô
+1192          ** @fn   (½ö¶ÔMIC2¡¢MIC3ÓÐÐ§)
+1193          **
+1194          ** @brief   3D»·ÈÆ
+1195          ** 
+1196          ** @param   none
+1197          ** Space£º¿Õ¼ä´óÐ¡
+1198          ** @return  none
+1199          */
+1200          void KT070xSetSurround3D(FlagStatus NewState,u8 Space)
+1201          {
+1202   1        u32 regx;
+1203   1        if(NewState==RESET)
+1204   1        {
+1205   2          regx = DSPRead(EffectMiscCtrl0);
+1206   2          DSPWrite(EffectMiscCtrl0, regx&~(1UL<<30));       // 
+1207   2          return;
+1208   2        }
+C51 COMPILER V9.59.0.0   KT070XEDRV                                                        04/12/2019 20:18:31 PAGE 21  
+
+1209   1        regx = DSPRead(EffectMiscCtrl0);  
+1210   1        DSPWrite(EffectMiscCtrl0,(regx&0x80FFFFFFUL)|(1UL<<30)|((u32)(Space&0x0F)<<24));    //  ÉèÖÃ SURROUND3D S
+             -pace
+1211   1      }
+1212          
+1213          /**       Ïû³ýÔ­Éù 
+1214          ** @fn      £¨×¢Òâ£ºÒôÔ´ÊäÈëÐèÎªÁ¢ÌåÒô£©       
+1215          **
+1216          ** @brief      Ïû³ýÔ­Éù 
+1217          ** 
+1218          ** @param   none
+1219          **
+1220          ** @return  none
+1221          */
+1222          void KT070xVolCut(FlagStatus NewState)
+1223          {
+1224   1        u32 regx;
+1225   1        regx = DSPRead(EffectMiscCtrl0);
+1226   1      //  ShowNumber(regx>>18);
+1227   1        if(NewState==RESET)
+1228   1        {
+1229   2          DSPWrite(EffectMiscCtrl0,regx&~(1UL<<31));  
+1230   2        }
+1231   1        else
+1232   1        {
+1233   2          DSPWrite(EffectMiscCtrl0,regx|(1UL<<31));
+1234   2        }
+1235   1      }
+1236          
+1237          /**       Ð¥½ÐÒÖÖÆ
+1238          ** @fn             
+1239          **
+1240          ** @brief   Set_Howling 
+1241          ** 
+1242          ** @param   none
+1243          **  Det_Diff_varTH£ºÐ¥½Ð¼ì²âÌõ¼þ£¬¹ýÁãµã¼ì²âÎó²î£¬ÖµÔ½Ð¡Ìõ¼þÔ½¿Á¿Ì£¬0~15£¬1~16Hz¡£
+1244              Det_Peak_varTH£ºÐ¥½Ð¼ì²âÌõ¼þ£¬·åÖµ¼ì²âÎó²î£¬ÖµÔ½Ð¡Ìõ¼þÔ½¿Á¿Ì£¬0~15¡£
+1245              Det_Peak_WinT£ºÐ¥½Ð¼ì²âÌõ¼þ£¬·åÖµ¼ì²âÖÜÆÚ£¬ÖµÔ½´óÌõ¼þÔ½¿Á¿Ì£¬0~63£¬1s~16s
+1246              Det_Notch_T£º¿ªÆôÏÝ²¨Æ÷Ìõ¼þ£¬ÏÝ²¨Æ÷¼ì²âÖÜÆÚ£¬ÖµÔ½´ó¿ªÆôÏÝ²¨Æ÷Ô½ÑÏ¸ñ£¬0~15
+1247              Det_Notch_Th£º¿ªÆôÏÝ²¨Æ÷Ìõ¼þ£¬ÏÝ²¨Æ÷ÆµÂÊ¼ì²âÎó²î£¬ÖµÔ½Ð¡¿ªÆôÏÝ²¨Æ÷Ìõ¼þÔ½ÑÏ¸ñ£¬0~15£¬1~16Hz¡£
+1248              AVC_WinT£ºÒôÁ¿¿ØÖÆÌõ¼þ£¬×Ô¶¯¿ØÖÆÒôÁ¿¼ì²âÖÜÆÚ£¬ÖµÔ½Ð¡ÒôÁ¿Ñ¹µÍ/ÊÍ·ÅÔ½¿ì¡£0~63£¬0.25s~16s¡£
+1249              AVC_ReleaseTimN£ºÒôÁ¿¿ØÖÆÌõ¼þ£¬Á¬ÐøN¸öAVC_WinTÊ±¼äÄÚÃ»ÓÐÐ¥½Ð¿ªÊ¼ÊÍ·ÅÒ»¸öStepÒôÁ¿¡£
+1250              AVC_WinShift£ºÒôÁ¿¿ØÖÆÌõ¼þ£¬Ð¥½ÐÊ±¼äÔÚÒ»¸öAVC_WinTÊ±¼äÄÚËùÕ¼°Ù·Ö±ÈÃÅÏÞ£¨¼´Ð¥½ÐÊ±¼ä/AVC_WinT´óÓÚÃÅÏÞÖµÊ
+             -±£¬Ñ¹µÍÒôÁ¿£©£¬0~7£¬ {50%,25%,12.5%,6.25%,3.125%,1.5625%,0.78%,0.39%}
+1251              AVC_AfterNotchN£ºÒôÁ¿¿ØÖÆÌõ¼þ£¬µ±¿ªÆôN+1Â·ÏÝ²¨Æ÷Ö®ºó¿ªÊ¼Ñ¹µÍÒôÁ¿¡£0~31£¬1~32Â·¡£
+1252              AVC_GainSet£ºÒôÁ¿¿ØÖÆÌõ¼þ£¬ÒôÁ¿×î´óÑ¹µÍÉî¶È£¬0~31£¬-6dB~-68dB£¬2dB/Step¡£
+1253              NotchDF£º¿ªÆôÏÝ²¨Æ÷Ìõ¼þ£¬²»Í¬ÏÝ²¨Æ÷Ö®¼ä×îÐ¡ÆµÂÊ²î£¬0~255£¬1~256Hz¡£
+1254              NotchQ£ºÏÝ²¨Æ÷¿ØÖÆÌõ¼þ£¬ÏÝ²¨Æ÷QÖµ£¬ÖµÔ½´óÏÝ²¨Æ÷²¨ÐÎÉÏÔ½¡°Õ­¡±¡£0~255£¬0:5£¬1:6£¬2:7¡­255:260¡£
+1255              NotchLife£ºÏÝ²¨Æ÷¿ØÖÆÌõ¼þ£¬ÏÝ²¨Æ÷Éú´æÖÜÆÚ£¬¼´Ã»ÓÐÐ¥½ÐÇé¿öÏÂ£¬ÏÝ²¨Æ÷Éú´æÖÜÆÚÂúºó£¬ÔÙ¾­¹ýÒ»¸öNotchUpTime
+             -Ê±¼äÏÝ²¨Æ÷ÊÍ·ÅÒ»¸öStep¡£0~31£¬0:1s£¬1:2s£¬2:3s¡­9:10s£¬10£º1,min£¬11:2min¡­19:10min£¬20:20min¡­31:130min¡£
+1256              NotchUpTime£ºÏÝ²¨Æ÷¿ØÖÆÌõ¼þ£¬ÏÝ²¨Æ÷Éú´æÖÜÆÚÂúºó£¬ÔÙ¾­¹ýÒ»¸öNotchUpTimeÊ±¼äÏÝ²¨Æ÷ÊÍ·ÅÒ»¸öStep¡£0~255,  
+             -0:1s, 1:2s, 2:3s...255:256s
+1257              NotchDeep£ºÏÝ²¨Æ÷¿ØÖÆÌõ¼þ£¬ÏÝ²¨Æ÷¿ªÆô×î´óÉî¶È£¬0~15£¬0:3dB, 1:6dB£¬2:9dB¡­15:48dB (3dB/Step)
+1258              NotchInitDeep£ºÏÝ²¨Æ÷¿ØÖÆÌõ¼þ£¬ÏÝ²¨Æ÷¿ªÆô³õÊ¼Éî¶È£¬0~15, 0:3dB, 1:6dB, 2:9dB...15:48dB (3dB/Step)
+1259              NotchDownStep£ºÏÝ²¨Æ÷¿ØÖÆÌõ¼þ£¬¼ì²âµ½Ð¥½ÐÊ±£¬Ò»¸öÖÜÆÚÄÚÏÝ²¨Æ÷ÏÂÏÝÉî¶È¡£
+1260              TotalNotchNum£º¿ªÆôÏÝ²¨Æ÷×ÜÊý£¨¹Ì¶¨+¶¯Ì¬£©¡£0~31
+1261              FixedNotchNum£º¿ªÆô¹Ì¶¨ÏÝ²¨Æ÷¸öÊý¡£0~31
+1262              SaveFixedNotchEn£º¹Ì¶¨ÏÝ²¨Æ÷¹Ø»ú±£´æ¿ª¹Ø£¨ÏÂ´Î¿ª»úÊ¹ÓÃ£©¡£
+1263              SaveVolumeEn£ºÒôÁ¿¹Ø»ú±£´æ¿ª¹Ø£¨ÏÂ´Î¿ª»úÊ¹ÓÃ£©¡£
+1264              VolumeCtrlEn£ºÑ¹ÒôÁ¿¿ØÖÆ¿ª¹Ø¡£
+1265          ** @return  none
+1266          */
+C51 COMPILER V9.59.0.0   KT070XEDRV                                                        04/12/2019 20:18:31 PAGE 22  
+
+1267          void KT070xSetHowling(FlagStatus NewState,st_HowlingCtrlStruct code *p)
+1268          {
+1269   1        u32 regx;
+1270   1        if(NewState==RESET)
+1271   1        {
+1272   2          regx = DSPRead(HowlingSprsCtrl0);
+1273   2          DSPWrite(HowlingSprsCtrl0,regx&~1UL);            // Howling RESET
+1274   2          return;
+1275   2        }
+1276   1        else
+1277   1        {
+1278   2          regx = DSPRead(HowlingSprsCtrl0);
+1279   2          DSPWrite(HowlingSprsCtrl0,regx | 1UL);            // Howling RESET
+1280   2          return;
+1281   2        }
+1282   1        regx = DSPRead(HowlingSprsCtrl0);
+1283   1        DSPWrite(HowlingSprsCtrl0,(regx&0xFFC0C0D7UL)|((u32)p->TotalNotchNum<<16)|\
+1284   1        ((u16)p->FixedNotchNum<<8)|(p->SaveFixedNotchEn<<5)|(p->VolumeCtrlEn<<3)|0x01); 
+1285   1        
+1286   1        regx = DSPRead(HowlingSprsCtrl1);
+1287   1        DSPWrite(HowlingSprsCtrl1,(regx&0xFFFF0000UL)|((u16)p->NotchQ<<8)|p->NotchDF); 
+1288   1        
+1289   1        regx = DSPRead(HowlingSprsCtrl2);
+1290   1        DSPWrite(HowlingSprsCtrl2,(regx&0x0000F007UL)|((u32)p->NotchDeep<<28)|((u32)p->NotchInitDeep<<24)|\
+1291   1        ((u32)p->NotchUpTime<<16)|((u16)p->NotchDownStep<<8)|(p->NotchLife<<3)); 
+1292   1        
+1293   1        regx = DSPRead(HowlingSprsCtrl3);
+1294   1        DSPWrite(HowlingSprsCtrl3,(regx&0xFFC00000UL)|((u32)p->Det_Notch_Th<<18)|((u32)p->Det_Notch_T<<14)|\
+1295   1        ((u16)p->Det_Peak_WinT<<8)|((u16)p->Det_Peak_varTH<<4)|p->Det_Diff_varTH);
+1296   1        
+1297   1        regx = DSPRead(HowlingSprsCtrl4);
+1298   1        DSPWrite(HowlingSprsCtrl4,(regx&0xFF000000UL)|((u32)p->AVC_WinShift<<21)|((u32)p->SaveVolumeEn<<20)|\
+1299   1        ((u32)p->AVC_ReleaseTimN<<16)|((u16)p->AVC_WinT<<10)|((u16)p->AVC_GainSet<<5)|p->AVC_AfterNotchN);
+1300   1      }
+1301          
+1302          /**       »ñÈ¡32Â·ÏÝ²¨Æ÷×´Ì¬
+1303          ** @fn             
+1304          **
+1305          ** @brief   Get_NotchEnNum
+1306          ** 
+1307          ** @param   none
+1308          **
+1309          ** @return  none
+1310              ·µ»Øµ±Ç°¿ªµÄÏÝ²¨Æ÷ bit0-31,¶ÔÓ¦µÚ1-32Â·ÏÝ²¨Æ÷£¬ÏàÓ¦Î»Îª1¼´Îª¿ªÆô £¨¿ÉÑ¡£©
+1311          */
+1312          u32 KT070xGetNotchEnStatus(void)               // »ñÈ¡ËùÓÐÏÝ²¨Æ÷×´Ì¬                
+1313          {
+1314   1      //  u8 i,sum = 0;
+1315   1      //  u32 regx;
+1316   1      //  regx = DSPRead(Howling_NotchEn_Read);
+1317   1      //  for(i=0;i<32;i++)
+1318   1      //  {
+1319   1      //    if(regx&(1UL<<i))
+1320   1      //      sum++;
+1321   1      //  }
+1322   1      //  return sum;                                              // ·µ»Øµ±Ç°¿ªµÄ×ÜÏÝ²¨Æ÷Â·Êý
+1323   1        return DSPRead(Howling_NotchEn_Read); //»òÕß£¬·µ»Øµ±Ç°¿ªµÄÏÝ²¨Æ÷ bit0-31,¶ÔÓ¦µÚ1-32Â·ÏÝ²¨Æ÷£¬ÏàÓ¦Î»Îª1¼´
+             -Îª¿ªÆô £¨¿ÉÑ¡£©
+1324   1      }
+1325          
+1326          /**       »ñÈ¡¹Ì¶¨ÏÝ²¨Æ÷×´Ì¬
+1327          ** @fn             ×¢Òâ¹Ì¶¨ÏÝ²¨Æ÷¿ÉÄÜ²»Á¬Ðø¡£
+C51 COMPILER V9.59.0.0   KT070XEDRV                                                        04/12/2019 20:18:31 PAGE 23  
+
+1328          **
+1329          ** @brief   Get_NotchFixedNum
+1330          ** 
+1331          ** @param   none
+1332          **
+1333          ** @return  none
+1334          */
+1335          u32 KT070xGetNotchFixedEnNum(void)                            
+1336          {
+1337   1      //  u8 i,sum = 0;
+1338   1      //  u32 regx;
+1339   1      //  regx = DSPRead(HowlingStudyNotchFixed);
+1340   1      //  for(i=0;i<32;i++)
+1341   1      //  {
+1342   1      //    if(regx&(1UL<<i))
+1343   1      //      sum++;
+1344   1      //  }
+1345   1      //  return sum;                                   // ·µ»Øµ±Ç°¿ªµÄ¹Ì¶¨ÏÝ²¨Æ÷Â·Êý
+1346   1        return DSPRead(HowlingStudyNotchFixed); // 
+1347   1      }
+1348          
+1349          /**       »ñÈ¡µÚNÂ·ÏÝ²¨Æ÷µÄÆµµãºÍÉî¶È
+1350          ** @fn             
+1351          **
+1352          ** @brief   Get_NotchData
+1353          ** 
+1354          ** @param   none
+1355          **
+1356          ** @return  none
+1357              ¸ß16ditÎªÉî¶È£¬µÍ16bitÎªÆµµã¡£
+1358          */
+1359          u32 KT070xGetNotchFreqDeep(u8 NotchN)                    
+1360          {
+1361   1        // High 16Bit  Notch Deep,Low 16Bit Notch Frequency
+1362   1        return DSPRead(HowlingStudyData0 + (NotchN&0x1f)); 
+1363   1      }
+1364            
+1365          /**       Çå¿ÕËùÓÐÏÝ²¨Æ÷£¬Ò»°ãÓÃÓÚÖØÐÂÑ§Ï°
+1366          ** @fn             
+1367          **
+1368          ** @brief   Clear_HowlingNotch
+1369          ** 
+1370          ** @param   none
+1371          **
+1372          ** @return  none
+1373          */
+1374          void KT070xClearHowlingNotch(void)       
+1375          {
+1376   1        u32 regx;
+1377   1        regx = DSPRead(HowlingSprsCtrl0);
+1378   1        DSPWrite(HowlingSprsCtrl0,regx|(1UL<<4));
+1379   1      }
+1380          
+1381          /**       ÉèÖÃÔëÉù
+1382          ** @fn             
+1383          **
+1384          ** @brief    
+1385          ** 
+1386          ** @param   none
+1387          **
+1388          ** @return  none
+1389          */
+C51 COMPILER V9.59.0.0   KT070XEDRV                                                        04/12/2019 20:18:31 PAGE 24  
+
+1390          void KT070xSetNoiseGate(FlagStatus NewState,MICTypes MICx,st_NoiseGateStruct code *p)
+1391          {
+1392   1        u32 regx;
+1393   1        if(NewState==RESET)
+1394   1        {
+1395   2          regx = DSPRead(NoiseGate_MIC0_Ctrl0+(MICx<<1));
+1396   2          DSPWrite(NoiseGate_MIC0_Ctrl0+(MICx<<1),regx&~1UL); 
+1397   2        }
+1398   1        else
+1399   1        {
+1400   2          regx = DSPRead(NoiseGate_MIC0_Ctrl0 + (MICx<<1));
+1401   2          DSPWrite(NoiseGate_MIC0_Ctrl0 + (MICx<<1),regx|1UL);  
+1402   2          regx = DSPRead(NoiseGate_MIC0_Ctrl0 + (MICx<<1) + 1);
+1403   2          DSPWrite(NoiseGate_MIC0_Ctrl0 + (MICx<<1) + 1,(regx&0x0000C0C0UL)|\
+1404   2          ((u32)p->StepOutTime<<28)|((u32)p->StepInTime<<24)|((u32)p->OutTime<<20)|\
+1405   2          ((u32)p->InTime<<16)|((u16)p->LowLevel<<8)|p->HighLevel); 
+1406   2        }
+1407   1      }
+1408          
+1409          /**       ÉèÖÃDRC²ÎÊý
+1410          ** @fn             
+1411          **
+1412          ** @brief   DRC Set @ADC,DACLR,DACS
+1413          ** 
+1414          ** @param   none
+1415          **
+1416              ReleaseTime£ºDRCÑÓÊ±»Ö¸´Ê±¼ä£¬0:2.05ms   1:4.1ms   2:8.2ms...  15:67.1s  
+1417              AttackTime£ºDRCÑÓÊ±µ½´ïÊ±¼ä£¬0:8us      1:16us    2:32us      15:262ms
+1418              DRCVLimit£ºDRC¹Õµã£¬0:0dBFS    1:-0.1dBFs...  255:-25.5dBFs
+1419              SoftLimit£ºÈí¹Õµã¿ª¹Ø
+1420          ** @return  none
+1421          */
+1422          
+1423          void KT070xSetDRC(FlagStatus NewState,DRCNodetype Nodex,DRCStruct *p)
+1424          {
+1425   1        u32 regx;
+1426   1        regx = DSPRead(DRC_ADC_Ctrl0 + Nodex*2);
+1427   1        DSPWrite(DRC_ADC_Ctrl0 + Nodex*2,(regx&0xFF0000F2UL)|((u32)(p->DRCVLimit)<<16)|\
+1428   1        ((u32)(p->ReleaseTime)<<12)|((u32)(p->AttackTime)<<8)|(p->SoftLimit<<2)|NewState);   
+1429   1      }
+1430          
+1431          /**       ¸ÉÊªÇÐ»»
+1432          ** @fn             
+1433          **
+1434          ** @brief      ¸ÉÊªÇÐ»»
+1435          ** 
+1436          ** @param   none
+1437          **
+1438          ** @return  none
+1439          */
+1440          void KT070xDACSDry(FlagStatus NewState)
+1441          {
+1442   1        u32 regx;
+1443   1        regx = DSPRead(AudioPath);
+1444   1        if(NewState==RESET)
+1445   1        {
+1446   2          DSPWrite(AudioPath,regx&~(1UL<<12));  
+1447   2        }
+1448   1        else
+1449   1        {
+1450   2          DSPWrite(AudioPath,regx|(1UL<<12)); 
+1451   2        }
+C51 COMPILER V9.59.0.0   KT070XEDRV                                                        04/12/2019 20:18:31 PAGE 25  
+
+1452   1      }
+1453          
+1454          /*³õÊ¼»¯Ð¾Æ¬,¶ÁÈ¡Ð¾Æ¬ID,³õÊ¼»¯Ð¾Æ¬FLASH*/
+1455          FlagStatus KT070xInit(void)
+1456          {
+1457   1        FlagStatus re=KT070xReadId();
+1458   1      
+1459   1      //  if(re)
+1460   1      //  {
+1461   1      //    KT070xMicSet(MIC0);
+1462   1      //  }
+1463   1      //  xP4MDL=0;
+1464   1      //  SCL_OUT;
+1465   1      //  SDA_OUT;
+1466   1      //  ShowNumber(xP4MDL);
+1467   1      //  return RESET;
+1468   1        return re;
+1469   1      }
+1470          
+1471          /**       ¶ÁÈ¡ÊäÈëÒôÁ¿Éè¶¨Öµ 
+1472          * 
+1473          *
+1474          *
+1475          */
+1476          u8 KT070xReadPreVolSet(MICTypes mic)
+1477          {
+1478   1        u32 regx;
+1479   1        if(mic<I2SL)
+1480   1        {
+1481   2          regx = DSPRead(ADC_PreVol);
+1482   2        }
+1483   1        else
+1484   1        {
+1485   2          regx = DSPRead(I2S_PreVol);
+1486   2        }
+1487   1          return (u8)(regx>>(mic<<3)&0x7FUL);
+1488   1      }
+1489          /**       ¶ÁÈ¡Êä³öÒôÁ¿Éè¶¨Öµ 
+1490          * 
+1491          *
+1492          *
+1493          */
+1494          u8 KT070xReadPostVolSet(DACTypes dac)
+1495          {
+1496   1        u32 regx;
+1497   1        if(dac==DACLR)
+1498   1        {
+1499   2          regx = DSPRead(DACLR_Mixer);
+1500   2        }
+1501   1        if(dac==DACS)
+1502   1        {
+1503   2          regx = DSPRead(DACS_Mixer);
+1504   2        }
+1505   1          return (u8)(regx&0x7FUL);
+1506   1      }
+1507          /**       ¶ÁÈ¡ÖÐ¼ä¼¶ÒôÁ¿Éè¶¨Öµ 
+1508          * 
+1509          *
+1510          *
+1511          */
+1512          u8 KT070xReadMixVolSet(DACTypes dac,MixerVolType Mixerx)
+1513          {
+C51 COMPILER V9.59.0.0   KT070XEDRV                                                        04/12/2019 20:18:31 PAGE 26  
+
+1514   1        u32 regx;
+1515   1        if(dac==DACLR)
+1516   1        {
+1517   2          regx = DSPRead(DACLR_Mixer);
+1518   2        }
+1519   1        if(dac==DACS)
+1520   1        {
+1521   2          regx = DSPRead(DACS_Mixer);
+1522   2        }
+1523   1        return (u8)(((regx>>((Mixerx+1)<<3)))&0x7FUL);
+1524   1      }
+1525          
+1526          /**       ¶ÁÈ¡Êä³öÒôÁ¿ 
+1527          * 
+1528          *
+1529          *
+1530          */
+1531          u8 KT070xGetVolLevel(DACTypes dac)
+1532          {
+1533   1        u8 re=KT070xReadPostVolSet(dac);
+1534   1        if (re>0)
+1535   1        {
+1536   2          re=(re/KT070x_VOL_INC)-4;
+1537   2        }
+1538   1        return re;
+1539   1      }
+1540          /**       ¶ÁÈ¡ÖÐ¼äÒôÁ¿ 
+1541          * 
+1542          *
+1543          *
+1544          */
+1545          u8 KT070xGetMixVolLevel(MixerVolType Mixerx)
+1546          {
+1547   1        u8 re=KT070xReadMixVolSet(DACLR,Mixerx);
+1548   1        if (re>0)
+1549   1        {
+1550   2          re=(re/KT070x_VOL_INC)-4;
+1551   2        }
+1552   1        return re;
+1553   1      }
+1554          
+1555          
+1556          /**       Öð¼¶¸Ä±äÖÐ¼äÒôÁ¿ 
+1557          * set:SET--ÒôÁ¿+;RESET--ÒôÁ¿-
+1558          *
+1559          *
+1560          */
+1561          //void KT070xChangeMixVol(FlagStatus set,MixerVolType Mixerx)
+1562          u8 KT070xChangeMicVol(FlagStatus set,u8 Level)
+1563          {  
+1564   1      //  static u8 Level =0;
+1565   1        u8 Vol;
+1566   1        if(set)
+1567   1        {
+1568   2          Level++;
+1569   2          if(Level>8)
+1570   2          {
+1571   3            Level = 8;
+1572   3            Twinkle();
+1573   3          }
+1574   2        }
+1575   1        else
+C51 COMPILER V9.59.0.0   KT070XEDRV                                                        04/12/2019 20:18:31 PAGE 27  
+
+1576   1        {
+1577   2          if(Level==0)
+1578   2          {
+1579   3            Level = 0;
+1580   3            Twinkle();
+1581   3          }
+1582   2          else
+1583   2            Level--;
+1584   2        }
+1585   1        
+1586   1        Vol = KT070x_VOL_MIN + Level * KT070x_VOL_INC;
+1587   1        KT070xSetMixVol(DACLR,MIC,Vol);
+1588   1        return Level;
+1589   1      }
+1590          
+1591          u8 KT070xChangeMusicVol(FlagStatus set,u8 Level)
+1592          { 
+1593   1      //  static u8 Level =0;
+1594   1        u8 Vol;
+1595   1      //   Level = FlashRead(FLASH_ID_VolMusic);
+1596   1        if(set)
+1597   1        {
+1598   2          Level++;
+1599   2          if(Level>8)
+1600   2          {
+1601   3            Level = 8;
+1602   3            Twinkle();
+1603   3          }
+1604   2        }
+1605   1        else
+1606   1        {
+1607   2          if(Level==0)
+1608   2          {
+1609   3            Level = 0;
+1610   3            Twinkle();
+1611   3          }
+1612   2          else
+1613   2            Level--;
+1614   2        }
+1615   1        Vol = KT070x_VOL_MIN + Level * KT070x_VOL_INC;
+1616   1        KT070xSetMixVol(DACLR,MUSIC,Vol);
+1617   1        return Level;
+1618   1      }
+1619          
+1620          /**       Öð¼¶±äµ÷ 
+1621          * set:SET--Òôµ÷+;RESET--Òôµ÷-
+1622          *
+1623          *
+1624          */
+1625          u8 KT070xChangePitchShift(FlagStatus set)
+1626          {  
+1627   1        u16 value = 0;
+1628   1        static u8 PSCount = 0;
+1629   1        
+1630   1        if(set)
+1631   1        {
+1632   2          PSCount++;
+1633   2          if(PSCount>9)
+1634   2          {
+1635   3            PSCount = 9;
+1636   3          Twinkle();
+1637   3          }
+C51 COMPILER V9.59.0.0   KT070XEDRV                                                        04/12/2019 20:18:31 PAGE 28  
+
+1638   2        }
+1639   1        else
+1640   1        {
+1641   2          if(PSCount == 0)
+1642   2          {
+1643   3            PSCount = 0;
+1644   3          Twinkle();
+1645   3          }
+1646   2            else
+1647   2            PSCount--;
+1648   2        }
+1649   1        value = KT070x_PS_MIN+(KT070x_PS_INC * PSCount);
+1650   1        if(PSCount==0)
+1651   1          KT070xSetPitchShift(RESET,value);
+1652   1        else
+1653   1          KT070xSetPitchShift(SET,value);
+1654   1        return PSCount;
+1655   1      }
+1656          
+1657          
+1658          /**       Öð¼¶±äEQ 
+1659          * set:SET--+;RESET---
+1660          *
+1661          *
+1662          */
+1663          u8 KT070xChangeEQ(FlagStatus set,EQGroupType type)
+1664          { 
+1665   1      //  static EQBandType eq[2]={PeakNotch,PeakNotch};
+1666   1      //   EQBandType temEq=PeakNotch;
+1667   1        static u8 temEq = 0;
+1668   1        u8 i=0;
+1669   1        switch (type)
+1670   1        {
+1671   2          case EQPTMIC:
+1672   2          {
+1673   3          }
+1674   2            break;
+1675   2          case EQMUSIC:
+1676   2          {
+1677   3            if(set)
+1678   3            {
+1679   4              temEq++;
+1680   4              if(temEq>4)
+1681   4              {
+1682   5                temEq = 4;
+1683   5                Twinkle();
+1684   5              }
+1685   4            }
+1686   3            else
+1687   3            {
+1688   4              if(temEq == 0)
+1689   4              {
+1690   5                temEq = 0;
+1691   5                Twinkle();
+1692   5              }
+1693   4                else
+1694   4                temEq--;
+1695   4            }
+1696   3      
+1697   3          }
+1698   2            break;
+1699   2          default:
+C51 COMPILER V9.59.0.0   KT070XEDRV                                                        04/12/2019 20:18:31 PAGE 29  
+
+1700   2            break;
+1701   2        }
+1702   1        for (i=0;i<5;i++)
+1703   1        {
+1704   2          KT070xSetEQBand(SET,type,&EQ_MIC01[temEq][i]);
+1705   2        }
+1706   1        return temEq;
+1707   1        
+1708   1      }
+1709          
+1710          /*»ìÏìÉèÖÃ*/
+1711          // SET Ôö¼Ó
+1712          // RESET ¼õÉÙ
+1713          u8 KT070ChangeEcho_Reverb(FlagStatus NewState)
+1714          {
+1715   1        static u8 value = 0;
+1716   1         KT070xSetEchoReverbPredelay(&EchoRe);//¹«¹²²ÎÊý
+1717   1        if(NewState)
+1718   1        {
+1719   2          value++;
+1720   2          if(value>=5)
+1721   2          {
+1722   3            value=4;
+1723   3            Twinkle();
+1724   3          }
+1725   2        }
+1726   1        else
+1727   1        {
+1728   2          
+1729   2          if(value==0)
+1730   2          {
+1731   3            value=0;
+1732   3          Twinkle();
+1733   3          }
+1734   2            else
+1735   2            value--;
+1736   2        }
+1737   1        EchoSetRevebbMode = value;
+1738   1      
+1739   1        switch(EchoSetRevebbMode)
+1740   1        { 
+1741   2          case EchoMode1:
+1742   2              KT070xSetReverb(RESET,&Reverb1);//»ìÏì¹Ø±Õ
+1743   2              KT070xSetEcho1(SET,&Echo0);//»ØÉù1
+1744   2            break;
+1745   2          case EchoMode2:
+1746   2              KT070xSetReverb(RESET,&Reverb1);//»ìÏì¹Ø±Õ
+1747   2              KT070xSetEcho1(SET,&Echo1);//»ØÉù2
+1748   2            break;
+1749   2          case RevebMode1: 
+1750   2                KT070xSetEcho1(RESET,&Echo0);//»ØÉù¹Ø±Õ
+1751   2              KT070xSetReverb(SET,&Reverb0);//»ìÏì1
+1752   2            break;
+1753   2          case RevebMode2: 
+1754   2            KT070xSetEcho1(RESET,&Echo0);//»ØÉù¹Ø±Õ
+1755   2              KT070xSetReverb(SET,&Reverb1);//»ìÏì2
+1756   2            break;
+1757   2          
+1758   2          case ModeNull:
+1759   2              KT070xSetEcho1(RESET,&Echo0);//»ØÉù¹Ø±Õ
+1760   2              KT070xSetReverb(RESET,0);//»ìÏì¹Ø±Õ
+1761   2            break;
+C51 COMPILER V9.59.0.0   KT070XEDRV                                                        04/12/2019 20:18:31 PAGE 30  
+
+1762   2          
+1763   2          default:
+1764   2            break;
+1765   2        }
+1766   1        return value;
+1767   1      
+1768   1        
+1769   1      }
+1770          
+1771          
+1772          /**       Ð¥½ÐÒÖÖÆ
+1773          *
+1774          *
+1775          *
+1776          */
+1777          void KT070xChangeHowling(void)
+1778          {
+1779   1        static FlagStatus set=SET;
+1780   1        set=!set;
+1781   1        KT070xSetHowling(set,&HowlingNotch);
+1782   1        
+1783   1        ShowNumber((u8)(DSPRead(HowlingSprsCtrl0)&0x01));
+1784   1      }
+1785          
+1786          
+1787          /**       3D
+1788          *
+1789          *
+1790          *
+1791          */
+1792          FlagStatus KT070xChange3D(FlagStatus SET)
+1793          {
+1794   1      
+1795   1        KT070xSetSurround3D(SET,7);
+1796   1        
+1797   1        return SET;
+1798   1      }
+1799          
+*** WARNING C294 IN LINE 1282 OF User\KT070xEDrv.c: unreachable code
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   6423    ----
+   CONSTANT SIZE    =    259    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      5     210
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      1    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)

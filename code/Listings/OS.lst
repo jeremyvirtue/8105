@@ -1,0 +1,193 @@
+C51 COMPILER V9.53.0.0   OS                                                                04/28/2020 09:38:51 PAGE 1   
+
+
+C51 COMPILER V9.53.0.0, COMPILATION OF MODULE OS
+OBJECT MODULE PLACED IN .\Objects\OS.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE User\OS.c OMF2 ROM(COMPACT) OPTIMIZE(8,SPEED) BROWSE INCDIR(.\User;.\Use
+                    -r\Drive) DEBUG PRINT(.\Listings\OS.lst) OBJECT(.\Objects\OS.obj)
+
+line level    source
+
+   1          #define _OS_C
+   2          
+   3          
+   4          
+   5          #include "OS.h" 
+   6          #include "Lcd.h"
+   7          #include "LcdDis.h"
+   8          #include "UHF.h"
+   9          #include "System.h"
+  10          #include "KeyBoard.h"
+  11          #include "ADC.h"
+  12          #include "RCC.h"
+  13          #include "kt_0646m.h"
+  14           
+  15          MyDelay  xdata taskDelay[MAXTASK];
+  16          OS               xdata os;
+  17          
+  18          /***********************************************************多任务****************************************
+             -*******************/
+  19          
+  20           void Test()
+  21          {
+  22   1        static u16 i=1;
+  23   1        ShowNumber(i++);
+  24   1        if (i>9999)
+  25   1          i=0;
+  26   1      }
+  27          
+  28          
+  29          
+  30          /*------任务0------*/
+  31          static void Task0(void)
+  32          {       
+  33   1              static u8 xdata num;
+  34   1              AutoMuteDis();
+  35   1              num++;
+  36   1              if(num >= 2)
+  37   1              {
+  38   2                      num = 0;
+  39   2                      AutoMuteDelay(); 
+  40   2              } 
+  41   1              if(Sdata.state != S_INIT)
+  42   1                      BatRead();  
+  43   1              
+  44   1              StopDelay();
+  45   1              KeyMute();
+  46   1              
+  47   1              LedLampDelay();
+  48   1      } 
+  49          
+  50          /*------任务1------*/
+  51          static void Task1(void)
+  52          {       
+  53   1              static u8 xdata count = 0; 
+C51 COMPILER V9.53.0.0   OS                                                                04/28/2020 09:38:51 PAGE 2   
+
+  54   1              count++;
+  55   1              if(count>=3)
+  56   1              {
+  57   2                      count = 0;
+  58   2                      TwinkleDis();
+  59   2              }
+  60   1              StartDis();
+  61   1              RailDis();
+  62   1              AutoMute(); 
+  63   1              
+  64   1              u_dat.ramid++;
+  65   1              if(u_dat.ramid == 255)
+  66   1                      u_dat.ramid = 1;
+  67   1              
+  68   1              if(u_dat.line_flag)
+  69   1              {
+  70   2                      u_dat.line_flag = 0; 
+  71   2                      if(Sdata.state == S_INIT)
+  72   2                      {
+  73   3                              SysState(BAT_CHARGE);
+  74   3                              IO_Initailize();  
+  75   3                              POWER = 1;
+  76   3                              KeyInit();
+  77   3                              LcdInit(); 
+  78   3                              AD_Init(CH7_P30);  
+  79   3                              Sdata.stop_time = 5;
+  80   3                              CHIP_EN_OUT;
+  81   3                              CHIP_EN = Disable; 
+  82   3                      } 
+  83   2              }
+  84   1              
+  85   1              if(Sdata.state == BAT_CHARGE)
+  86   1              {
+  87   2                      if(!LINE_EN)
+  88   2                      {
+  89   3                              CHIP_EN_OUT;
+  90   3                              CHIP_EN = Enable; 
+  91   3                              Sdata.stop_time = 5;
+  92   3                              SysState(S_INIT);
+  93   3                      }
+  94   2              }
+  95   1      } 
+  96          
+  97          void OSTaskInit(void)
+  98          {
+  99   1              //5ms
+ 100   1              u8   i=0;
+ 101   1              taskDelay[0].delay=100;         //1S
+ 102   1              taskDelay[1].delay=20;                  //100ms  
+ 103   1              
+ 104   1              for (i=0;i < MAXTASK;i++)
+ 105   1              {
+ 106   2                taskDelay[i].counter=taskDelay[i].delay;
+ 107   2              }
+ 108   1              
+ 109   1      }
+ 110          
+ 111          /**         任务调度
+ 112          *
+ 113          *
+ 114          */
+ 115          void OSTaskScan(void)
+C51 COMPILER V9.53.0.0   OS                                                                04/28/2020 09:38:51 PAGE 3   
+
+ 116          {
+ 117   1              u8  i=0;
+ 118   1        static   xdata void (*  Task[])()={&Task0,&Task1}; 
+ 119   1      
+ 120   1          for (i=0;i<MAXTASK;i++)
+ 121   1          {
+ 122   2            if (taskDelay[i].counter==0)
+ 123   2            {
+ 124   3              taskDelay[i].counter=taskDelay[i].delay;
+ 125   3              Task[i]();
+ 126   3            }
+ 127   2          }
+ 128   1      }
+ 129          
+ 130          void OSTick(void)
+ 131          { 
+ 132   1        u8 i; 
+ 133   1        for (i=0;i<MAXTASK;i++)
+ 134   1        {
+ 135   2          if (taskDelay[i].counter>0)
+ 136   2          {
+ 137   3            taskDelay[i].counter--;
+ 138   3          }                           
+ 139   2        }
+ 140   1      }
+ 141          
+ 142          
+ 143           
+ 144           
+ 145          
+ 146          /**********************************************************功能任务***************************************
+             -******************/
+ 147          /*        系统初始化
+ 148          *   调用各子功能的初始化函数
+ 149          *   
+ 150          */
+ 151          void OSInit(void)
+ 152          {       
+ 153   1        OSTaskScan();
+ 154   1        OSTick();  
+ 155   1        OSTaskInit(); 
+ 156   1      }
+ 157          
+ 158          
+ 159          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    424    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =     22    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      2       1
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

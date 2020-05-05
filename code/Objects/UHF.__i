@@ -1,0 +1,1 @@
+"User\UHF.c" OMF2 ROM(COMPACT) OPTIMIZE (8,SPEED) BROWSE INCDIR(.\User;.\User\Drive) DEBUG PRINT(.\Listings\UHF.lst) OBJECT(.\Objects\UHF.obj)

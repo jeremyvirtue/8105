@@ -1,0 +1,282 @@
+C51 COMPILER V9.53.0.0   LCD                                                               04/15/2020 14:42:57 PAGE 1   
+
+
+C51 COMPILER V9.53.0.0, COMPILATION OF MODULE LCD
+OBJECT MODULE PLACED IN .\Objects\Lcd.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE User\Lcd.c OMF2 ROM(COMPACT) OPTIMIZE(8,SPEED) BROWSE INCDIR(.\User;.\Us
+                    -er\Drive) DEBUG PRINT(.\Listings\Lcd.lst) OBJECT(.\Objects\Lcd.obj)
+
+line level    source
+
+   1          
+   2          #include "Lcd.h" 
+   3          #include "CharMatrix.h"
+   4          #include <intrins.h>
+   5          
+   6          u8 lcdBuf[6]={0x00,0x00,0x00,0x00,0x00,0x00}; 
+   7          
+   8          
+   9          /**       显示数码管的某一段
+  10          *
+  11          *
+  12          */
+  13          static void LcdBitScan(u8 bt)
+  14          {
+  15   1              switch(bt)
+  16   1              {
+  17   2                      case 0:  A1_ON; break;
+  18   2                      case 1:  B1_ON; break;
+  19   2                      case 2:  C1_ON; break;
+  20   2                      case 3:  D1_ON; break;
+  21   2                      case 4:  E1_ON; break; 
+  22   2                      case 5:  F1_ON; break;
+  23   2                      case 6:  G1_ON; break;
+  24   2                      case 7:  break;
+  25   2                      
+  26   2                      case 8:  A2_ON; break;
+  27   2                      case 9:  B2_ON; break;
+  28   2                      case 10: C2_ON; break;
+  29   2                      case 11: D2_ON; break;
+  30   2                      case 12: E2_ON; break; 
+  31   2                      case 13: F2_ON; break;
+  32   2                      case 14: G2_ON; break;
+  33   2                      case 15: break;
+  34   2                      
+  35   2                      case 16: A3_ON; break;
+  36   2                      case 17: B3_ON; break;
+  37   2                      case 18: C3_ON; break;
+  38   2                      case 19: D3_ON; break;
+  39   2                      case 20: E3_ON; break; 
+  40   2                      case 21: F3_ON; break;
+  41   2                      case 22: G3_ON; break;
+  42   2                      case 23: DP_ON; break;
+  43   2                      
+  44   2                      case 24: A4_ON; break;
+  45   2                      case 25: B4_ON; break;
+  46   2                      case 26: C4_ON; break;
+  47   2                      case 27: D4_ON; break;
+  48   2                      case 28: E4_ON; break; 
+  49   2                      case 29: F4_ON; break;
+  50   2                      case 30: G4_ON; break;
+  51   2                      case 31: break;
+  52   2                      
+  53   2                      case 32: J1_ON; break;
+  54   2                      case 33: J2_ON; break;
+C51 COMPILER V9.53.0.0   LCD                                                               04/15/2020 14:42:57 PAGE 2   
+
+  55   2                      case 34: J3_ON; break;
+  56   2                      case 35: J4_ON; break;
+  57   2                      case 36: K8_ON; break;
+  58   2                      case 37: K7_ON; break;
+  59   2                      case 38: K6_ON; break;
+  60   2                      case 39: break;
+  61   2                      
+  62   2                      case 40: K1_ON; break; 
+  63   2                      case 41: K2_ON; break;
+  64   2                      case 42: K3_ON; break;
+  65   2                      case 43: K4_ON; break;
+  66   2              }                                       
+  67   1      }
+  68          
+  69          
+  70          /**       显示全部数据
+  71          *
+  72          *
+  73          */
+  74          void LcdScan(void)
+  75          {       
+  76   1              static u8 i,j;
+  77   1              
+  78   1              LCD1_IN;
+  79   1              LCD2_IN;
+  80   1              LCD3_IN;
+  81   1              LCD4_IN;
+  82   1              LCD5_IN;
+  83   1              LCD6_IN;
+  84   1              LCD7_IN;
+  85   1              i++;
+  86   1              if(i>7)
+  87   1              {
+  88   2                      i=0;
+  89   2                      j++;
+  90   2                      if(j>5)
+  91   2            j=0;
+  92   2              }               
+  93   1              if(lcdBuf[j] & 0x80>>i)
+  94   1              {
+  95   2                      LcdBitScan(j*8+i);
+  96   2              }
+  97   1       
+  98   1      }       
+  99          
+ 100                  
+ 101          /*        显示一个字符
+ 102          * 
+ 103          * 
+ 104          * 
+ 105          */
+ 106          void ShowChar(LCDDigitalId id, LCDCharId ch)
+ 107          {
+ 108   1        lcdBuf[id] =lcdChar[ch];
+ 109   1      }       
+ 110          
+ 111          /*        显示小数点
+ 112          * 
+ 113          * 
+ 114          * 
+ 115          */
+ 116          void DpDis()
+C51 COMPILER V9.53.0.0   LCD                                                               04/15/2020 14:42:57 PAGE 3   
+
+ 117          {
+ 118   1              lcdBuf[2] |=0x01;
+ 119   1      }
+ 120                  
+ 121          /*        显示数字
+ 122          * 
+ 123          * 
+ 124          * 
+ 125          */
+ 126          void ShowNumber(u16 val)
+ 127          {
+ 128   1        u8 len=0;
+ 129   1        u16 tem=0;
+ 130   1        if (val>9999)
+ 131   1          val=9999;
+ 132   1        tem=val;
+ 133   1        while (tem)
+ 134   1        {
+ 135   2          len++;
+ 136   2          tem /=10;
+ 137   2        } 
+ 138   1        switch (len)
+ 139   1        {
+ 140   2              case 0:
+ 141   2          {
+ 142   3            ShowChar(0,CHAR_XX);
+ 143   3            ShowChar(1,CHAR_XX);
+ 144   3            ShowChar(2,CHAR_XX);
+ 145   3            ShowChar(3,CHAR_0);
+ 146   3          }
+ 147   2                      break;
+ 148   2              case 1:
+ 149   2          {
+ 150   3            ShowChar(0,CHAR_XX);
+ 151   3            ShowChar(1,CHAR_XX);
+ 152   3            ShowChar(2,CHAR_XX);
+ 153   3            ShowChar(3,val%10);
+ 154   3          }
+ 155   2                      break;
+ 156   2              case 2:
+ 157   2          {
+ 158   3            ShowChar(0,CHAR_XX);
+ 159   3            ShowChar(1,CHAR_XX);
+ 160   3            ShowChar(2,val/10%10);
+ 161   3            ShowChar(3,val%10);
+ 162   3          }
+ 163   2                      break;
+ 164   2              case 3:
+ 165   2          {
+ 166   3            ShowChar(0,CHAR_XX);
+ 167   3            ShowChar(1,val/100%10);
+ 168   3            ShowChar(2,val/10%10);
+ 169   3            ShowChar(3,val%10);
+ 170   3          }
+ 171   2                      break;
+ 172   2              case 4:
+ 173   2          {
+ 174   3            ShowChar(0,val/1000%10);
+ 175   3            ShowChar(1,val/100%10);
+ 176   3            ShowChar(2,val/10%10);
+ 177   3            ShowChar(3,val%10);
+ 178   3          }
+C51 COMPILER V9.53.0.0   LCD                                                               04/15/2020 14:42:57 PAGE 4   
+
+ 179   2                      break;
+ 180   2              default:
+ 181   2                      break;
+ 182   2        }
+ 183   1      
+ 184   1      }
+ 185          
+ 186          
+ 187          
+ 188          /*        显示图标
+ 189          * 
+ 190          * 
+ 191          * 
+ 192          */
+ 193          void ShowIco(LcdIcon icon, FlagStatus set)
+ 194          {
+ 195   1        if (set)
+ 196   1          lcdBuf[5]|=icon;
+ 197   1        else
+ 198   1          lcdBuf[5]&=~icon;
+ 199   1      }
+ 200          
+ 201          
+ 202          /*        电池电量图标
+ 203          *   val:电量级别
+ 204          *   set:1-充电模式;0-正常模式
+ 205          *   
+ 206          */
+ 207          void ShowBattery(LCDBatteryValue val)//,FlagStatus set)
+ 208          {
+ 209   1        static  LCDBatteryValue tem=0;
+ 210   1            tem=val;
+ 211   1      
+ 212   1        lcdBuf[4]=lcdBattery[tem];
+ 213   1      }
+ 214          
+ 215          
+ 216          void LcdInit(void)
+ 217          {
+ 218   1              LCD1_IN;
+ 219   1              LCD2_IN;
+ 220   1              LCD3_IN;
+ 221   1              LCD4_IN;
+ 222   1              LCD5_IN;
+ 223   1              LCD6_IN;
+ 224   1              LCD7_IN; 
+ 225   1       
+ 226   1      } 
+ 227                  
+ 228           
+ 229          
+ 230          void LcdClose()
+ 231          {
+ 232   1                      LCD1_OUT;LCD2_OUT;LCD3_OUT;LCD4_OUT;LCD5_OUT;LCD6_OUT;LCD7_OUT;
+ 233   1                      LCD1=0;LCD2=0;LCD3=0;LCD4=0;LCD5=0;LCD6=0;LCD7=0; 
+ 234   1      }
+ 235                  
+ 236          void LcdClean(void)
+ 237          {
+ 238   1              u8 i;
+ 239   1              for(i = 0;i<6;i++)
+ 240   1                      lcdBuf[i]  = 0x00;
+C51 COMPILER V9.53.0.0   LCD                                                               04/15/2020 14:42:57 PAGE 5   
+
+ 241   1      }
+ 242          
+ 243          
+ 244          
+ 245          
+ 246          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1445    ----
+   CONSTANT SIZE    =     36    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      9       1
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

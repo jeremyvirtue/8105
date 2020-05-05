@@ -1,0 +1,141 @@
+C51 COMPILER V9.53.0.0   IRSEND                                                            03/18/2020 20:04:35 PAGE 1   
+
+
+C51 COMPILER V9.53.0.0, COMPILATION OF MODULE IRSEND
+OBJECT MODULE PLACED IN .\Objects\IrSend.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE User\IrSend.c OMF2 ROM(COMPACT) OPTIMIZE(8,SPEED) BROWSE INCDIR(.\User;.
+                    -\User\Drive) DEBUG PRINT(.\Listings\IrSend.lst) OBJECT(.\Objects\IrSend.obj)
+
+line level    source
+
+   1          #include "IrSend.h"
+   2          #include "Lcd.h"
+   3          //*************************************************************************************************
+   4          //*                                                                                                                                                                               *
+   5          //*                      ********************************IR高电平*******************************                  *
+   6          //*                                                                                                                                                                                               *
+   7          //*************************************************************************************************
+   8          void H_26us(unsigned char udelay)
+   9          {
+  10   1              unsigned char i,j;
+  11   1      //      for(i = 0;i < udelay;i ++)
+  12   1      //      {
+  13   1      //              for(j=0;j<4;j++)
+  14   1      //                      IR_TX = 0;
+  15   1      //              for(j=0;j<4;j++)
+  16   1      //                      IR_TX = 1;
+  17   1      //      }
+  18   1                      for(i = 0;i < udelay;i ++)
+  19   1              {
+  20   2                      for(j=0;j<8;j++)
+  21   2                              IR_TX = 0;
+  22   2                      for(j=0;j<8;j++)
+  23   2                              IR_TX = 1;
+  24   2              }
+  25   1      }
+  26          
+  27          //*************************************************************************************************
+  28          //*                                                                                                                                                                                               *
+  29          //*                      ********************************IR低电平*******************************                  *
+  30          //*                                                                                                                                                                                               *
+  31          //*************************************************************************************************
+  32          void L_26us(unsigned char udelay)
+  33          {
+  34   1              unsigned char i,j;
+  35   1      //      for(i = 0;i < udelay;i ++)
+  36   1      //      {                        
+  37   1      //              for(j=0;j<8;j++)
+  38   1      //                      IR_TX  = 1;
+  39   1      //      }
+  40   1                      for(i = 0;i < udelay;i ++)
+  41   1              {                        
+  42   2                      for(j=0;j<16;j++)
+  43   2                              IR_TX  = 1;
+  44   2              }
+  45   1      }
+  46          
+  47          //*************************************************************************************************
+  48          //*                                                                                                                                                                                               *
+  49          //*                      ********************************IR的8位数据发送*******************************           *
+  50          //*                                                                                                                                                                                               *
+  51          //*************************************************************************************************
+  52          void IrSendByte(unsigned char udata)
+  53          {
+  54   1              unsigned char i;
+C51 COMPILER V9.53.0.0   IRSEND                                                            03/18/2020 20:04:35 PAGE 2   
+
+  55   1              for(i=0;i<8;i++)
+  56   1              {
+  57   2                      H_26us(20);
+  58   2                      udata >>= 1;  //注意这里的位置很重要
+  59   2                      if(CY==1)
+  60   2                      {
+  61   3                              L_26us(65);
+  62   3                      }
+  63   2                      else
+  64   2                      {
+  65   3                              L_26us(18);
+  66   3                      }
+  67   2              }
+  68   1      }
+  69          
+  70          /*************************************************************************
+  71                                    旧协议 发送红外数据
+  72          **************************************************************************/
+  73          void IrSend(u8 u1H,u8 u1L,u8 u2H,u8 u2L,u8 u3H,u8 u3L)  
+  74          {               
+  75   1              IR_SEND_OUT;
+  76   1              EA=0; 
+  77   1              
+  78   1        LCD1_IN ;   
+  79   1        LCD2_IN ;   
+  80   1        LCD3_IN ;   
+  81   1        LCD4_IN ;   
+  82   1        LCD5_IN ;  
+  83   1        LCD6_IN ; 
+  84   1        LCD7_IN ;
+  85   1              
+  86   1              IR_TX = 1;
+  87   1              H_26us(173);//9ms
+  88   1              H_26us(173);//9ms
+  89   1              L_26us(174);//4.5ms
+  90   1              IrSendByte(u1H);//用户识别码
+  91   1              IrSendByte(u1L);//用户识别码
+  92   1              IrSendByte(u2H);//用户码
+  93   1              IrSendByte(u2L);//用户反码
+  94   1              IrSendByte(u3H);//按键码
+  95   1              IrSendByte(u3L);//按键反码
+  96   1              H_26us(26);     
+  97   1              IR_TX = 1;       
+  98   1              EA=1; 
+  99   1              IR_SEND_IN;     
+ 100   1      }       
+ 101          
+ 102          
+ 103          
+ 104          
+ 105          
+ 106          
+ 107          
+ 108          
+ 109          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    180    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+C51 COMPILER V9.53.0.0   IRSEND                                                            03/18/2020 20:04:35 PAGE 3   
+
+   DATA SIZE        =   ----       6
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

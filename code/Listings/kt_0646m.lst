@@ -1,0 +1,1122 @@
+C51 COMPILER V9.53.0.0   KT_0646M                                                          04/28/2020 09:38:51 PAGE 1   
+
+
+C51 COMPILER V9.53.0.0, COMPILATION OF MODULE KT_0646M
+OBJECT MODULE PLACED IN .\Objects\kt_0646m.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE User\kt_0646m.c OMF2 ROM(COMPACT) OPTIMIZE(8,SPEED) BROWSE INCDIR(.\User
+                    -;.\User\Drive) DEBUG PRINT(.\Listings\kt_0646m.lst) OBJECT(.\Objects\kt_0646m.obj)
+
+line level    source
+
+   1          //*****************************************************************************
+   2          //  File Name:    KT_WirelessMicTxdrv.c
+   3          //  Function:    KT Wireless Mic Transmitter Products Driver For Customer
+   4          //                (KT064xM)
+   5          //*****************************************************************************
+   6          //        Revision History
+   7          //  Version Date        Description
+   8          //  V0.1    2016-04-26  For KT0646M_VX
+   9          //  V0.2    2016-06-01  增加VX和VX2的编译选项    
+  10          //  V0.3    2016-08-18  For KT0646M_VX4
+  11          //  V0.3.1  2016-08-24  删除KT_WirelessMicTx_Init程序内一些重复配置
+  12          //  V0.4    2016-08-26  修正了XTAL_DUAL问题
+  13          //  V0.5    2016-10-11  修改了初始化函数中的一些配置，把0x25,0x26寄存器的配置加到了初始化函数里面，
+  14          //                  在初始化函数里面set pilot frequency
+  15          //  V0.5.1  2016-10-17  重新修改了一下里面的宏定义，定义了RXISKT0616M就用BPSK的旧模式，然后再根据
+  16          //                  是否是双晶振把KT0616M选晶振的程序加进去。
+  17          //  V0.5.2  2016-11-15  在tune台前把lo_fine_vref_sel改为3，tune完后改成0.
+  18          //  V0.5.3  2016-12-15  在初始化中把lo_fine_vref_sel改为3，不用在tune台的时候再来回修改了.为了温度
+  19          //                  变化不锁定的问题，详见被宏DOUBLE_KVCO包围的代码
+  20          //  V0.6    2017-02-08  格式规范化整理
+  21          //  V1.1    2017-04-27  删除了一些初始化函数里面没用的东西，把有些用小写字母定义的宏定义改成了大写的字母
+  22          //----------------------------------------------------------
+  23          // Includes
+  24          //---------------------------------------------------------- 
+  25          #include "kt_0646m.h"
+  26          #include <intrins.h>
+  27          #include <stdlib.h> 
+  28          #include "System.h"
+  29          #include "Lcd.h"
+  30          #include "RCC.h"
+  31          
+  32           
+  33          
+  34          
+  35          
+  36          
+  37          //KTxxM kt0646;
+  38          u8 xdata displayTime=0;
+  39          
+  40          static void KTNop()
+  41          {
+  42   1      //  os.DelayMS(1);
+  43   1      }
+  44          
+  45          
+  46          
+  47          /*        总线发送字节数据
+  48          * 
+  49          * 
+  50          * 
+  51          */
+  52          static  void KTTxByte(u8 by)
+  53          {
+  54   1              u8 i;
+C51 COMPILER V9.53.0.0   KT_0646M                                                          04/28/2020 09:38:51 PAGE 2   
+
+  55   1        u8 tem=0;
+  56   1      //  SDA_OUT();
+  57   1              for (i=0;i<8;i++)
+  58   1              {       
+  59   2          KTNop();
+  60   2          tem=by & 0x80;
+  61   2                      if (tem!=0x80)
+  62   2                              SDA_RESET;
+  63   2                      else
+  64   2                              SDA_SET;
+  65   2          KTNop();
+  66   2                      by = by<<1;
+  67   2          KTNop();
+  68   2                      SCL_SET;
+  69   2          KTNop();
+  70   2                      SCL_RESET;
+  71   2          KTNop();
+  72   2              }
+  73   1          KTNop();
+  74   1      }
+  75          
+  76          /*        总线接收字节数据
+  77          * 
+  78          * 
+  79          * 
+  80          */
+  81          static u8 KTRxByte(void)
+  82          {
+  83   1        u8 i,re=0;
+  84   1        SDA_IN();
+  85   1        for (i=0;i<8;i++)
+  86   1        {
+  87   2          re <<=1;
+  88   2          KTNop();
+  89   2          SCL_SET;
+  90   2          KTNop();
+  91   2          re |=SDA_READ;
+  92   2          KTNop();
+  93   2          SCL_RESET;
+  94   2        }
+  95   1          KTNop();
+  96   1        SDA_OUT();
+  97   1        return re;
+  98   1      }
+  99          
+ 100          /*        总线响应
+ 101          * re:SET-有应答   RESET-无应答
+ 102          * 
+ 103          * 
+ 104          */
+ 105          static FlagStatus KTAck(void)
+ 106          {
+ 107   1        FlagStatus re;
+ 108   1        SDA_IN();
+ 109   1        KTNop();
+ 110   1        SDA_SET;
+ 111   1        KTNop();
+ 112   1        SCL_SET;
+ 113   1        KTNop();
+ 114   1        KTNop();
+ 115   1        re =(FlagStatus)SDA_READ;
+ 116   1        KTNop();
+C51 COMPILER V9.53.0.0   KT_0646M                                                          04/28/2020 09:38:51 PAGE 3   
+
+ 117   1        SCL_RESET;
+ 118   1        KTNop();
+ 119   1        SDA_OUT();
+ 120   1        return (FlagStatus)(!re);
+ 121   1      }
+ 122          
+ 123          /*        总线开始
+ 124          * 
+ 125          * 
+ 126          * 
+ 127          */
+ 128          static void KTStart(void)
+ 129          {
+ 130   1        SDA_OUT();
+ 131   1        SCL_OUT();
+ 132   1        KTNop();
+ 133   1              SDA_SET;
+ 134   1        KTNop();
+ 135   1              SCL_SET;
+ 136   1        KTNop();
+ 137   1              SDA_RESET;
+ 138   1        KTNop();
+ 139   1              SCL_RESET;
+ 140   1        KTNop();
+ 141   1      }
+ 142          /*        总线结束
+ 143          * 
+ 144          * 
+ 145          * 
+ 146          */
+ 147          static void KTStop(void)
+ 148          {
+ 149   1        SDA_OUT();
+ 150   1        KTNop();
+ 151   1        SCL_RESET;
+ 152   1        KTNop();
+ 153   1        SDA_RESET;
+ 154   1        KTNop();
+ 155   1        SCL_SET;
+ 156   1        KTNop();
+ 157   1        SDA_SET;
+ 158   1        KTNop();
+ 159   1      }
+ 160          
+ 161          /*        读设备的数据
+ 162          * devAdd:设备地址
+ 163          * regAdd:设备上的寄存器地址
+ 164          * 
+ 165          u8 ReadDeviceByte(u8 devAdd,u8 regAdd)
+ 166          {
+ 167            u8 re=0;
+ 168            KTStart();
+ 169            KTTxByte(devAdd & 0xFE);
+ 170            if (KTAck())
+ 171            {
+ 172              KTTxByte(regAdd);
+ 173              if (KTAck())
+ 174              {
+ 175                KTStart();
+ 176                KTTxByte(devAdd & 01);
+ 177                if (KTAck())
+ 178                {
+C51 COMPILER V9.53.0.0   KT_0646M                                                          04/28/2020 09:38:51 PAGE 4   
+
+ 179                  re=KTRxByte();
+ 180                  KTAck();
+ 181                }
+ 182              }
+ 183            }
+ 184            KTStop();
+ 185            return re;
+ 186          }
+ 187          */
+ 188          
+ 189          static u16 KTReadDeviceWord(u8 devAdd,u8 regAdd)
+ 190          {
+ 191   1        u16 re=0;
+ 192   1        KTStart();
+ 193   1        KTTxByte(devAdd & 0xFE);
+ 194   1        if (KTAck())
+ 195   1        {
+ 196   2          KTTxByte(regAdd);
+ 197   2          if (KTAck())
+ 198   2          {
+ 199   3            KTStart();
+ 200   3            KTTxByte(devAdd | 0x01);
+ 201   3            if (KTAck())
+ 202   3            {
+ 203   4              re=KTRxByte()<<8;
+ 204   4              KTNop();
+ 205   4              SDA_RESET;
+ 206   4              KTNop();
+ 207   4              SCL_SET;
+ 208   4              KTNop();
+ 209   4              SCL_RESET;
+ 210   4              KTNop();
+ 211   4              SDA_SET;
+ 212   4              KTNop();
+ 213   4              re |=KTRxByte();
+ 214   4              KTNop();
+ 215   4            }
+ 216   3          }
+ 217   2        }
+ 218   1        
+ 219   1        KTStop();
+ 220   1        return re;
+ 221   1      }
+ 222          
+ 223          
+ 224          static void WriteDeviceWord(u8 devAdd,u8 regAdd,u16 da)
+ 225          {
+ 226   1        u8 daL,daH;
+ 227   1        daL=da;
+ 228   1        daH=da>>8;
+ 229   1        KTStart();
+ 230   1        KTTxByte(devAdd & 0xFE);
+ 231   1        if (KTAck())
+ 232   1        {
+ 233   2          KTTxByte(regAdd);
+ 234   2          if (KTAck())
+ 235   2          {
+ 236   3            KTTxByte(daH);      
+ 237   3            if (KTAck())
+ 238   3            {
+ 239   4              KTTxByte(daL);
+ 240   4              KTAck();
+C51 COMPILER V9.53.0.0   KT_0646M                                                          04/28/2020 09:38:51 PAGE 5   
+
+ 241   4            }
+ 242   3          }
+ 243   2        }  
+ 244   1        SCL_RESET;
+ 245   1        KTStop();
+ 246   1      }
+ 247          
+ 248          
+ 249          
+ 250          /**       对KT0646M寄存器写入数据
+ 251                  参数：Register 寄存器地址，Word_Data写入的数据
+ 252                  返回值：无
+ 253          */ 
+ 254          void KT_Bus_Write46(uint8_t Register_Address, uint16_t Word_Data)
+ 255          {
+ 256   1              WriteDeviceWord(KTWirelessMicTxw_address,Register_Address,Word_Data);
+ 257   1      }
+ 258          /**       读KT芯片寄存器数据
+ 259                  参数：Register_Address 寄存器地址
+ 260                  返回值：读取到的数据
+ 261          */
+ 262          uint16_t KT_Bus_Read46(uint8_t Register_Address)
+ 263          {
+ 264   1              return( KTReadDeviceWord(KTWirelessMicTxr_address, Register_Address) );
+ 265   1      }
+ 266          
+ 267          
+ 268          uint8_t KT_WirelessMicTx_Init(uint32_t Freq)
+ 269          {
+ 270   1              uint16_t regx;          
+ 271   1          regx = KT_Bus_Read46(0x03);
+ 272   1          KT_Bus_Write46(0x03, (regx & 0x7FFF) | (WAKEUP << 15)); //Write Standby bit to 0
+ 273   1          Delay_ms(50);
+ 274   1          regx = KT_Bus_Read46(0x03);
+ 275   1          KT_Bus_Write46(0x03, (regx & 0xfffe) | PA_SEL);
+ 276   1          regx = KT_Bus_Read46(0x24);
+ 277   1          KT_Bus_Write46(0x24, (regx & 0xEFFF) | (BATTERY_METER_ENABLE << 12));
+ 278   1          //ref_vtr_vth_sel = 1
+ 279   1          regx=KT_Bus_Read46(0x47);                        
+ 280   1          KT_Bus_Write46(0x47,(regx | 0x0200));
+ 281   1          //vref_mon_en=1
+ 282   1          regx = KT_Bus_Read46(0x0a);
+ 283   1          KT_Bus_Write46(0x0a, regx | 0x0200);  
+ 284   1          regx = KT_Bus_Read46(0x1C);
+ 285   1          KT_Bus_Write46(0x1C, (regx & 0xF1E1) | ( FDEV_MONITOR_TC_250ms << 10 ) | (COMPANDOR_ENABLE<<4) | 
+ 286   1                       ( PRE_EMPHASIS_ENABLE << 9 ) | ( COMPANDOR_TC_12ms << 1 ));
+ 287   1         // KT_WirelessMicTx_Mic_Sens(0);   //音量改为最小 
+ 288   1                      //KT_WirelessMicTx_MuteSel(AUDIO_MUTE); //关闭声音 
+ 289   1          /*cic overflow detect enable*/
+ 290   1          regx = KT_Bus_Read46(0x1e); 
+ 291   1          KT_Bus_Write46(0x1e, (regx & 0xffdf)|(1<<5)); 
+ 292   1      
+ 293   1          regx=KT_Bus_Read46(0x30);
+ 294   1          KT_Bus_Write46(0x30, ( regx & 0x8000 ) | (AGC_VHIGH << 11) | (AGC_VLOW << 7) | (AGC_ATTACK << 4) | 
+ 295   1                       (AGC_RELEASE << 1) | AGC_DIS );
+ 296   1       
+ 297   1       
+ 298   1          regx=KT_Bus_Read46(0x31);
+ 299   1          KT_Bus_Write46( 0x31, ( regx & 0xff00 ) | (GAIN_SEL << 6) | (COMPEN_GAIN << 4) | 
+ 300   1                        (BLANK_EN << 3) | BLANK_TIME );
+ 301   1      
+ 302   1          regx=KT_Bus_Read46(0x39);
+C51 COMPILER V9.53.0.0   KT_0646M                                                          04/28/2020 09:38:51 PAGE 6   
+
+ 303   1          KT_Bus_Write46(0x39,(regx & 0xFC00) | (HARD_LIMIT << 6) | (CPRS_1XLPF_BP << 5) | 
+ 304   1                       (CPRS_KNEE_DIS << 4) | CPRS_THRSH);
+ 305   1      
+ 306   1          KT_Bus_Write46( 0x3a,(ALC_DIS << 15) | (ALC_SOFTKNEE << 14) | (ALC_VMAX << 7) | 
+ 307   1                        (ALC_ATTACK << 4) | ALC_RELEASE );
+ 308   1      
+ 309   1      
+ 310   1              #ifdef SILENCE_MUTE
+ 311   1          regx=KT_Bus_Read46(0x25);
+ 312   1          KT_Bus_Write46( 0x25,(regx&0xc000)|(SLNC_MUTE_DIS << 13) | (SLNC_MUTE_TIME << 8) | 
+ 313   1                       (SLNC_MUTE_LOW_LEVEL << 4) | SLNC_MUTE_HIGH_LEVEL );
+ 314   1          regx=KT_Bus_Read46(0x26);
+ 315   1          KT_Bus_Write46( 0x26,(regx&0xfffb)|(SILENCE_MUTE_ACT_MCU << 2));
+ 316   1              #endif
+ 317   1      
+ 318   1              /*************开启辅助信道******************/
+ 319   1              regx=KT_Bus_Read46(0x1f);
+ 320   1              KT_Bus_Write46(0x1f,(regx&0x80f0)|(AUXDATA_EN << 14)|(AUX_REG_NUM << 12)|(AUX_CARRY_NUM46 << 9) | BPSK_NE
+             -W_MODE46); 
+ 321   1              KT_Bus_Write46(0x20,(AUX_ADDRB << 8) | AUX_ADDRA);
+ 322   1              KT_Bus_Write46(0x21,(AUX_ADDRD << 8) | AUX_ADDRC);  
+ 323   1      
+ 324   1                              
+ 325   1          #ifdef OTHER_RX
+                      #ifdef XTAL_24M_ONLY
+                      KT_WirelessMicTx_Set_Pilot_Freq(XTAL_24M_FREQ); //set pilot frequency
+                      #endif
+                      #ifdef XTAL_24P576M_ONLY
+                      KT_WirelessMicTx_Set_Pilot_Freq(XTAL_24P576M_FREQ); //set pilot frequency
+                      #endif
+                  #endif
+ 333   1          //for VCO unlock because of temperature change
+ 334   1          regx=KT_Bus_Read46(0x10);
+ 335   1          KT_Bus_Write46(0x10,(regx|0x0010)); //vco_ldo_calicode=1.4v
+ 336   1          regx=KT_Bus_Read46(0x45);
+ 337   1          KT_Bus_Write46(0x45,((regx&0xfff0)|0x0007));
+ 338   1      
+ 339   1          regx=KT_Bus_Read46(0x2d);
+ 340   1          KT_Bus_Write46(0x2d,(regx&0xfff8)|3); //lofine_vref_sel=0.4v
+ 341   1      
+ 342   1          #ifdef pll_unlock 
+                      regx = KT_Bus_Read46(0x2f);                
+                      KT_Bus_Write46(0x2f, regx|0x0080); //pll_unlock_en
+                      regx = KT_Bus_Read46(0x44);                
+                      KT_Bus_Write46(0x44, (regx&0x1fff)|(1<<13)); //lo_lock_hth_vsel
+                      regx = KT_Bus_Read46(0x44);                
+                      KT_Bus_Write46(0x44, (regx&0xe3ff)|(3<<10)); //lo_lock_lth_vsel
+                      regx = KT_Bus_Read46(0x44);                
+                      KT_Bus_Write46(0x44, regx&0xfdff); //lo_lock_det_pd
+                  #endif
+ 352   1              //***************************************************************
+ 353   1              #ifdef OPEN_BAT         //使用KT内部电池检测功能
+ 354   1                      KT_WirelessMicTx_BatteryMeter_SW(BATTERY_METER_ENABLE); //打开电池检测功能
+ 355   1              #endif
+ 356   1      
+ 357   1              if(KT_WirelessMicTx_Tune(Freq))                                                                                 //发射频率设置
+ 358   1              {
+ 359   2                      KT_WirelessMicTx_PAGain(PA_Pos18dBm);                                                           //PA增益设置
+ 360   2                      KT_WirelessMicTx_PASW(PA_ON);                                                                           //PA打开        
+ 361   2                      KT_WirelessMicTx_Pilot_Fdev(PILOT_FDEV_FREQ);                                           //倒频信号调制频偏大小设置      
+ 362   2                      KT_WirelessMicTx_Pilot(PILOT_ENABLE);                                                           //开启32.768KHz倒频信号 
+ 363   2      //              SendAuxData(NORMAL_WORK,Msystem.Volume,Freq/100,Msystem.DevID); //发正确的AUX 信号给接收
+C51 COMPILER V9.53.0.0   KT_0646M                                                          04/28/2020 09:38:51 PAGE 7   
+
+ 364   2                      return(1);//初始化正确
+ 365   2              }
+ 366   1              return(0);      //初始化错误
+ 367   1      }
+ 368          
+ 369          
+ 370          /******************************************************
+ 371            函 数 名：KT_WirelessMicTx_PASW                                                                                                       
+ 372            功能描述：PA打开、关闭程序                                                                                                            
+ 373            函数说明：用来控制芯片打开或者关闭PA                                                                                          
+ 374            调用函数：KT_Bus_Read46()、KT_Bus_Write46()                                                                                   
+ 375            全局变量：                                                                                                                                            
+ 376            输    入：bPA_Switch                                                                                                                          
+ 377            返    回：正确：1                                     错误：0                                                                                                                                                                                                                 
+ 378          *******************************************************/
+ 379          uint8_t B_open_PA;
+ 380          uint8_t KT_WirelessMicTx_PASW(uint8_t bPA_Switch)
+ 381          {                  
+ 382   1      //#define PA_OFF 0
+ 383   1      //#define PA_ON  1
+ 384   1              uint16_t regF;
+ 385   1              B_open_PA = bPA_Switch;         //设置标记
+ 386   1              regF = KT_Bus_Read46(0x0F);      
+ 387   1          KT_Bus_Write46(0x0F, (regF & 0xFFF7) | ( (uint8_t)bPA_Switch << 3 ));
+ 388   1              return(1);
+ 389   1      }
+ 390          
+ 391          
+ 392          /*******************************************************
+ 393            函 数 名：KT_WirelessMicTx_PAGain                                                                                                     
+ 394            功能描述：PA增益调整                                                                                                                          
+ 395            函数说明：cPaGain范围为0-12，共13档                                                                                           
+ 396            调用函数：KT_Bus_Read46()、KT_Bus_Write46()                                                                                   
+ 397            全局变量：                                                                                                                                            
+ 398            输    入：cPaGain                                                                                                                                     
+ 399            返    回：正确：1                                     错误：0                                                                                                                                                                                 
+ 400          ********************************************************/
+ 401          uint8_t KT_WirelessMicTx_PAGain(uint8_t cPaGain)
+ 402          {
+ 403   1              uint16_t reg11;
+ 404   1              reg11 = KT_Bus_Read46(0x11);
+ 405   1              KT_Bus_Write46(0x11, (reg11 & 0xFF00) | cPaGain );              
+ 406   1      
+ 407   1              return(1);      
+ 408   1      }
+ 409          
+ 410          
+ 411          /*********************************************************
+ 412            函 数 名：KT_WirelessMicTx_Mic_Sens                                                                                           
+ 413            功能描述：Mic灵敏度调整                                                                                                                       
+ 414            函数说明：cMicSens围为0-15，共16档                                                                                            
+ 415            调用函数：KT_Bus_Read46()、KT_Bus_Write46()                                                                                   
+ 416            全局变量：                                                                                                                                            
+ 417            输    入：cMicSens                                                                                                                            
+ 418            返    回：正确：1                                     错误：0                                                                                                                                                                                                                         
+ 419          **********************************************************/
+ 420          uint8_t KT_WirelessMicTx_Mic_Sens(uint8_t cMicSens)
+ 421          {
+ 422   1              uint16_t reg1C;
+ 423   1      
+ 424   1              reg1C = KT_Bus_Read46(0x1C);
+ 425   1              KT_Bus_Write46(0x1C, (reg1C & 0xFE1F) | ( (uint16_t)cMicSens << 5 ));
+C51 COMPILER V9.53.0.0   KT_0646M                                                          04/28/2020 09:38:51 PAGE 8   
+
+ 426   1      
+ 427   1              return(1);
+ 428   1      }
+ 429          
+ 430          /**************************************************************
+ 431            函 数 名：KT_WirelessMicTx_MuteSel                                                                                            
+ 432            功能描述：静音功能打开、关闭程序                                                                                                      
+ 433            函数说明：用来选择打开或者关闭静音功能                                                                                        
+ 434            调用函数：KT_Bus_Read46()、KT_Bus_Write46()                                                                                   
+ 435            全局变量：                                                                                                                                            
+ 436            输    入：bMute_Sel                                                                                                                           
+ 437            返    回：正确：1                                     错误：0                                                                                                                                                                                                 
+ 438          ***************************************************************/
+ 439          uint8_t B_mute;
+ 440          uint8_t KT_WirelessMicTx_MuteSel(uint8_t bMute_Sel)
+ 441          {
+ 442   1              uint16_t reg1C;
+ 443   1      //#define       AUDIO_UNMUTE    0    //开启声音
+ 444   1      //#define       AUDIO_MUTE              1    //静音
+ 445   1              B_mute =  bMute_Sel;
+ 446   1              reg1C = KT_Bus_Read46(0x1C);
+ 447   1              KT_Bus_Write46(0x1C, (reg1C & 0xFFFE) | bMute_Sel);                                     //Write Mute bit
+ 448   1      
+ 449   1              return(1);
+ 450   1      }
+ 451          /************************************************************************
+ 452            函 数 名：KT_WirelessMicTx_Calc_ChanReg                                    
+ 453            功能描述：晶体的频率控制字计算                                                
+ 454            函数说明：输入以KHz为单位的VCO震荡频率;                                            
+ 455                      计算结果存在*chan_ptr,*chan_frac_ptr,*chan_frac_msb_ptr中                
+ 456            全局变量：                                                                        
+ 457            输    入：Freq （输入以KHz为单位的VCO频率）                                        
+ 458            返    回：正确：1    错误：0                                                            
+ 459          *************************************************************************/
+ 460          //lopa_div1 * lopa_div2
+ 461          uint8_t code lopa_div_tab[13]=  
+ 462          {
+ 463              6, 8, 10, 12,
+ 464                16, 20, 24,
+ 465                32, 40, 48,
+ 466                64, 80, 96
+ 467          };
+ 468          
+ 469          //reg0x08<bit9:8> and <bit7:6>
+ 470          uint8_t code lopa_div_tab2[13][2]= 
+ 471          {
+ 472               {0,0},{0,1}, {0,2}, {0,3},
+ 473                     {1,1}, {1,2}, {1,3},
+ 474                     {2,1}, {2,2}, {2,3},
+ 475                     {3,1}, {3,2}, {3,3}
+ 476          };
+ 477          
+ 478          
+ 479          uint8_t KT_WirelessMicTx_Calc_ChanReg(int32_t Freq, uint8_t  *lopa_div1_ptr,uint8_t  *lopa_div2_ptr,
+ 480                                             uint16_t  *chan_ptr, uint16_t  *chan_frac_ptr, 
+ 481                                             uint8_t  *chan_frac_msb_ptr, uint32_t *chan_frac_temp_ptr,int32_t xtal_
+             -freq)
+ 482          {
+ 483   1          uint32_t chan_frac;
+ 484   1          int32_t Fvco;
+ 485   1          uint32_t temp,tempMin=xtal_freq;
+ 486   1      //    double chan_frac_d;
+C51 COMPILER V9.53.0.0   KT_0646M                                                          04/28/2020 09:38:51 PAGE 9   
+
+ 487   1      //    double chan_frac_temp_d;
+ 488   1          uint16_t i = 12;
+ 489   1          uint8_t lopa_div;
+ 490   1      //    uint16_t chan_temp;
+ 491   1          long vco_highth = 4320000; //VCO Range:4.32G-5.76G
+ 492   1          
+ 493   1          //lodiv 期望值
+ 494   1          lopa_div = vco_highth / Freq;
+ 495   1      
+ 496   1          //lodiv 实际值
+ 497   1          for(i=0; i<12; i++)
+ 498   1          {
+ 499   2              if(lopa_div < lopa_div_tab[i])
+ 500   2              {            
+ 501   3                  break;                                                   
+ 502   3              }
+ 503   2          }
+ 504   1          //输出lopa_div1和lopa_div2
+ 505   1          *lopa_div1_ptr = lopa_div_tab2[i][1];
+ 506   1          *lopa_div2_ptr = lopa_div_tab2[i][0];
+ 507   1          
+ 508   1          //计算VCO 频率
+ 509   1          Fvco = Freq * lopa_div_tab[i];
+ 510   1          //整数
+ 511   1          *chan_ptr = Fvco / (xtal_freq * 7) + 1; //dll_mode : *7
+ 512   1          //小数
+ 513   1      //    chan_frac_d = Fvco;
+ 514   1      //    chan_frac_d = chan_frac_d / (xtal_freq * 7);     //31.1221
+ 515   1      //    chan_frac_d = chan_frac_d - (*chan_ptr);
+ 516   1      //    chan_frac_d = chan_frac_d * 65536;                 //-57532.95
+ 517   1      //    chan_frac = chan_frac_d;
+ 518   1          chan_frac= (((Fvco % (xtal_freq * 7))-(xtal_freq * 7))<<12)/((xtal_freq * 7)>>4);
+ 519   1      
+ 520   1          *chan_frac_msb_ptr = (chan_frac & 0x00030000) >> 16 ; //reg0x08<bit1:0>
+ 521   1          *chan_frac_ptr = chan_frac & 0x0000ffff; //reg0x09
+ 522   1      
+ 523   1      //    chan_temp = Freq / xtal_freq + 1;
+ 524   1      //    chan_frac_temp_d = Freq;
+ 525   1      //    chan_frac_temp_d = chan_frac_temp_d / xtal_freq - chan_temp;
+ 526   1      //    *chan_frac_temp_ptr = chan_frac_temp_d;
+ 527   1      
+ 528   1      //    *chan_frac_temp_ptr= ((xtal_freq>>1)-abs(((Freq%xtal_freq)-(xtal_freq>>1))))*(3072000/xtal_freq);
+ 529   1          
+ 530   1          for(i=1;i<4;i++)
+ 531   1          {
+ 532   2              temp = ((xtal_freq/(2*i))-abs(((Freq%(xtal_freq/i))-(xtal_freq/(2*i)))))*i;
+ 533   2              if(temp<tempMin)
+ 534   2              {
+ 535   3                  tempMin=temp;
+ 536   3              }
+ 537   2          }
+ 538   1          i=8;
+ 539   1          temp = ((xtal_freq/(2*i))-abs(((Freq%(xtal_freq/i))-(xtal_freq/(2*i)))))*i;
+ 540   1          if(temp<tempMin)
+ 541   1          {
+ 542   2              tempMin=temp;
+ 543   2          }
+ 544   1          *chan_frac_temp_ptr=tempMin*(3072000/xtal_freq);        
+ 545   1          return(1);
+ 546   1      }
+ 547          
+ 548          
+C51 COMPILER V9.53.0.0   KT_0646M                                                          04/28/2020 09:38:51 PAGE 10  
+
+ 549          
+ 550          
+ 551          //-----------------------------------------------------------------------------
+ 552          //函 数 名：KT_WirelessMicTx_Tune                                                     
+ 553          //功能描述：发射频率设置函数                                                        
+ 554          //函数说明：输入以KHz为单位的发射频率，                                                
+ 555          //全局变量：                                                                        
+ 556          //输    入：Freq （输入以KHz为单位的发射频率）                                        
+ 557          //返    回：正确：1                 错误：0                                            
+ 558          //设 计 者：Zhou Dongfeng           时间：2016-04-05                                         
+ 559          //修 改 者：Zhou Dongfeng           时间：2016-08-26                                         
+ 560          //版    本：V0.1    For KT0646M_VX
+ 561          //          V0.2    修改了变量定义的方式并增加了VX和VX2的宏定义，
+ 562          //                  修改了解决DLL不锁定部分程序的位置
+ 563          //                  去掉了不用的chan_cfg2变量
+ 564          //                  去掉了MCU_POWER_OK位的查询工作
+ 565          //                  去掉了PLL锁定的判断
+ 566          //          V0.4    统一了变量定义格式
+ 567          //-----------------------------------------------------------------------------
+ 568          
+ 569          uint8_t KT_WirelessMicTx_Tune(int32_t Freq)
+ 570          {
+ 571   1                uint16_t S_PLL_delay46;
+ 572   1          uint16_t chan0;
+ 573   1          uint16_t chan_frac0;
+ 574   1          uint8_t chan_frac_msb0;
+ 575   1          uint8_t lopa_div10,lopa_div20;
+ 576   1          volatile  uint16_t regx,regy;
+ 577   1          uint32_t chan_frac_temp0;    
+ 578   1          uint16_t state;      
+ 579   1              
+ 580   1              
+ 581   1              #ifdef OPEN_EQ
+ 582   1              KT_WirelessMicTx_EQSW(0);  //关闭EQ
+ 583   1              #endif
+ 584   1          #ifdef DOUBLE_KVCO
+ 585   1              regx=KT_Bus_Read46(0x2d); //kvco_cali_bps=0
+ 586   1              KT_Bus_Write46(0x2d, (regx&0xf7ff));
+ 587   1          
+ 588   1              regx=KT_Bus_Read46(0x0a); //locpcali_bps=0
+ 589   1              KT_Bus_Write46(0x0a, (regx&0xffef));
+ 590   1              regx=KT_Bus_Read46(0x3d);
+ 591   1              KT_Bus_Write46(0x3d, (regx&0xffbf));              
+ 592   1          
+ 593   1              regx=KT_Bus_Read46(0x3c);
+ 594   1              KT_Bus_Write46(0x3c, (regx&0xfffd)); //loamp_cali_bps=0
+ 595   1          #endif    
+ 596   1              
+ 597   1      //    regx = KT_Bus_Read46(0x2d);
+ 598   1      //    KT_Bus_Write46(0x2d, (regx&0xfff8)|0x0003); //lo_fine_vref_sel
+ 599   1      #ifdef XTAL_24M_ONLY
+ 600   1          KT_WirelessMicTx_Calc_ChanReg(Freq, &lopa_div10, &lopa_div20, &chan0, &chan_frac0, 
+ 601   1                                        &chan_frac_msb0,&chan_frac_temp0, 24000);
+ 602   1      #endif
+ 603   1          KT_Bus_Write46(0x08,(chan0 << 10) | (lopa_div10 << 8) | (lopa_div20 << 6) | (0 << 5) | 
+ 604   1                       (0 << 4) | (0 <<2) | chan_frac_msb0); //
+ 605   1          KT_Bus_Write46(0x09, chan_frac0|0x0001);
+ 606   1      
+ 607   1          //dll未锁定，切换晶振后需要rst
+ 608   1          regx = KT_Bus_Read46(0x0e);
+ 609   1          KT_Bus_Write46(0x0e, regx | 0x0080); //dll_rst is from regbank
+ 610   1          regx = KT_Bus_Read46(0x0e);
+C51 COMPILER V9.53.0.0   KT_0646M                                                          04/28/2020 09:38:51 PAGE 11  
+
+ 611   1          KT_Bus_Write46(0x0e, regx | 0x0100); //dll_rst=1
+ 612   1          Delay_ms(2);
+ 613   1          regx = KT_Bus_Read46(0x0e);
+ 614   1          KT_Bus_Write46(0x0e, regx & 0xfeff); //dll_rst=0
+ 615   1      
+ 616   1          regx=KT_Bus_Read46(0x0a);
+ 617   1          KT_Bus_Write46(0x0a,regx|0x0020); //tune
+ 618   1      
+ 619   1          regx=KT_Bus_Read46(0x0d);
+ 620   1          regx = (regx&0x0800)>>11;
+ 621   1                      S_PLL_delay46 = 300;//2s
+ 622   1          while(!regx) //wait pll ready
+ 623   1          {
+ 624   2                      Delay_ms(10);
+ 625   2              regx=KT_Bus_Read46(0x0d);
+ 626   2              regx = (regx&0x0800)>>11;  
+ 627   2                                      S_PLL_delay46--;
+ 628   2                                      if(!S_PLL_delay46) 
+ 629   2                      return(0);
+ 630   2          }
+ 631   1       
+ 632   1          #ifdef DOUBLE_KVCO
+ 633   1              regx=KT_Bus_Read46(0x2e); //double+16MHz/V locoarse_var_sel
+ 634   1              state=regx&0x1C00;
+ 635   1              state=state>>10;
+ 636   1              if(state >= 3)
+ 637   1              {
+ 638   2                  state = 7;                                
+ 639   2              }
+ 640   1              else
+ 641   1              {
+ 642   2                  state = (state<<1) + 3;
+ 643   2              }
+ 644   1              regx=(regx&0xe3ff)|(state<<10);
+ 645   1                                                 
+ 646   1              regy=KT_Bus_Read46(0x2d); //kvco_cali_bps=1
+ 647   1              KT_Bus_Write46(0x2d, (regy|0x0800));              
+ 648   1          
+ 649   1              KT_Bus_Write46(0x2e, regx); //write locoarse/lofine_var_sel
+ 650   1          
+ 651   1              regx=KT_Bus_Read46(0x2a); //write cp_code
+ 652   1              state=(regx&0x007e)>>1;
+ 653   1              regx=KT_Bus_Read46(0x3d);
+ 654   1              KT_Bus_Write46(0x3d, (regx&0xff80)|(1<<6)|state);
+ 655   1          
+ 656   1              regx=KT_Bus_Read46(0x0a); //locpcali_bps=1
+ 657   1              KT_Bus_Write46(0x0a, (regx|0x0010));              
+ 658   1          
+ 659   1              regx=KT_Bus_Read46(0x3c);
+ 660   1              KT_Bus_Write46(0x3c, (regx|0x0002)); //loamp_cali_bps=1
+ 661   1          
+ 662   1              regx=KT_Bus_Read46(0x0a);
+ 663   1              KT_Bus_Write46(0x0a,regx|0x0020); //tune
+ 664   1          
+ 665   1              regx=KT_Bus_Read46(0x0d);
+ 666   1              regx = (regx&0x0800)>>11;
+ 667   1                                      S_PLL_delay46 = 300;//2s
+ 668   1              while(!regx) //wait pll ready
+ 669   1              {
+ 670   2                                              
+ 671   2                                              regx=KT_Bus_Read46(0x0d);
+ 672   2                                              regx = (regx&0x0800)>>11;
+C51 COMPILER V9.53.0.0   KT_0646M                                                          04/28/2020 09:38:51 PAGE 12  
+
+ 673   2                                              Delay_ms(10);
+ 674   2                                              S_PLL_delay46--;
+ 675   2                                              if(!S_PLL_delay46) 
+ 676   2                                                      return(0);
+ 677   2              }
+ 678   1          #endif
+ 679   1              Delay_ms(10);
+ 680   1              #ifdef OPEN_EQ
+ 681   1              SettingEQ();  //设置EQ
+ 682   1              #endif
+ 683   1              
+ 684   1      //      regx=KT_Bus_Read46(0x1f);
+ 685   1      //      KT_Bus_Write46(0x1f, regx & (~0x4000)); //bpsk data disable
+ 686   1      //      regx=KT_Bus_Read46(0x1f);
+ 687   1      //      KT_Bus_Write46(0x1f, regx | 0x4000);    //bpsk data Enable
+ 688   1                              
+ 689   1        return(1);
+ 690   1      }
+ 691          
+ 692          
+ 693          
+ 694          
+ 695          
+ 696          
+ 697          #ifdef OPEN_BAT                         //使用KT内部电池检测功能
+ 698          /*****************************************************************
+ 699            函 数 名：KT_WirelessMicTx_BatteryMeter_SW                                                                            
+ 700            功能描述：电池电压检测功能打开、关闭程序                                                                                      
+ 701            函数说明：选择打开或者关闭电池电压检测功能                                                                            
+ 702            调用函数：KT_Bus_Read46()、KT_Bus_Write46()                                                                                     
+ 703            全局变量：                                                                                                                                            
+ 704            输    入：bBatteryMeter_En                                                                                                            
+ 705            返    回：正确：1                                     错误：0                                                                                 
+ 706          ******************************************************************/
+ 707          uint8_t KT_WirelessMicTx_BatteryMeter_SW(uint8_t bBatteryMeter_En)
+ 708          {
+ 709   1              uint16_t reg24;
+ 710   1      
+ 711   1              reg24 = KT_Bus_Read46(0x24);
+ 712   1              KT_Bus_Write46(0x24, (reg24 & 0xEFFF) | ( (uint16_t)bBatteryMeter_En << 12));
+ 713   1      
+ 714   1              return(1);
+ 715   1      } 
+ 716          
+ 717          
+ 718          /*********************************************************************
+ 719             函 数 名：KT_WirelessMicTx_BatteryMeter_Read                                                                         
+ 720            功能描述：电池电压读取程序                                                                                                            
+ 721            函数说明：读取当前的电池电压，返回值为0-2047的整数                                                            
+ 722            调用函数：KT_Bus_Read46()                                                                                                                     
+ 723            全局变量：                                                                                                                                            
+ 724            输    入：无                                                                                                                                          
+ 725            返    回：reg7 & 0x07FF（为0-2047的整数）                                                                                                                     
+ 726          ********************************************************************/
+ 727          uint16_t KT_WirelessMicTx_BatteryMeter_Read(void)
+ 728          {
+ 729   1              uint16_t reg7;
+ 730   1              reg7 = KT_Bus_Read46(0x07);
+ 731   1              return( reg7 & 0x07FF );
+ 732   1      }
+ 733          
+ 734          
+C51 COMPILER V9.53.0.0   KT_0646M                                                          04/28/2020 09:38:51 PAGE 13  
+
+ 735          #endif
+ 736          /*********************************************************************************************
+ 737            函 数 名：KT_WirelessMicTx_PowerDownProcedure                                                                                                 
+ 738            功能描述：关机处理程序                                                                                                                        
+ 739            函数说明：                                                                                                                                    
+ 740            调用函数：KT_WirelessMicTx_MuteSel();KT_WirelessMicTx_Pilot();KT_WirelessMicTx_PAGain();
+ 741                                        KT_WirelessMicTx_PASW();KT_Bus_Read46();KT_Bus_Write46();Delay_ms();                                                                                                      
+ 742            全局变量：无                                                                                                                                  
+ 743            输    入：无;                                                                                                                 
+ 744            返    回：无                                                                                                                                                                                                                                                          
+ 745          **********************************************************************************************/
+ 746          void KT_WirelessMicTx_PowerDownProcedure(void)
+ 747          {
+ 748   1              uint16_t regx;            
+ 749   1              //KT_WirelessMicTx_MuteSel(AUDIO_MUTE); //关闭声音 
+ 750   1              KT_WirelessMicTx_PAGain(0); 
+ 751   1              KT_WirelessMicTx_PASW(PA_OFF);              //PA关闭  
+ 752   1              regx=KT_Bus_Read46(0x0a);
+ 753   1              KT_Bus_Write46(0x0a,regx|0x1000);                                       //recali 
+ 754   1              regx = KT_Bus_Read46(0x03);
+ 755   1              KT_Bus_Write46(0x03, regx | (STANDBY << 15));           //Write Standby bit to 1
+ 756   1      //      Delay_ms(5);
+ 757   1              
+ 758   1              /*regx=KT_Bus_Read46(0x0a);
+ 759   1              KT_Bus_Write46(0x0a,regx|0x1000);                                       //recali
+ 760   1      
+ 761   1              regx = KT_Bus_Read46(0x03);
+ 762   1              KT_Bus_Write46(0x03, regx | (STANDBY << 15));           //Write Standby bit to 1
+ 763   1      //      Delay_ms(20);*/
+ 764   1      
+ 765   1      }
+ 766          
+ 767          
+ 768          
+ 769          #ifdef  OPEN_ECHO               //是否打开混响功能
+              /***************************************************************************
+                函 数 名：KT_WirelessMicTx_ECHO                                        
+                功能描述：ECHO混响配置程序                                                
+                函数说明：配置ECHO混响效果                
+                全局变量：                                                                        
+                输    入：bEcho_Dis    （ECHO开关）
+                           Echo_Ratio     （ECHO反馈）                                        
+                           Echo_Delay     （ECHO延时）
+                返    回：无                                                                                            
+             -                       
+              ***************************************************************************/
+              void KT_WirelessMicTx_ECHO(uint8_t bEcho_Dis,uint8_t Echo_Ratio,uint8_t Echo_Delay)
+              {
+                  uint16_t regx;
+              
+                      //if(!Echo_Ratio)
+                      //      bEcho_Dis = 1;//关闭混响        
+              
+                  KT_Bus_Write46( 0x32, (ECHO_MCU << 15) | ((uint8_t)bEcho_Dis << 14) | (ECHO_STRU << 13) | 
+                               (Echo_Ratio << 8) | (Echo_Delay << 3) | ECHO_GAINUP );
+                  
+                  regx = KT_Bus_Read46(0x33);
+                  KT_Bus_Write46( 0x33, (regx & 0xFFFC) | ECHO_GAINDOWN );                          
+              }       
+              #endif
+ 794          
+ 795          
+C51 COMPILER V9.53.0.0   KT_0646M                                                          04/28/2020 09:38:51 PAGE 14  
+
+ 796          
+ 797          #ifdef  OPEN_EQ         //是否打开EQ功能
+ 798          /******************************************************
+ 799            函 数 名：KT_WirelessMicTx_EQSW                                                                               
+ 800            功能描述：EQ均衡器开关程序                                                                                            
+ 801            函数说明：配置EQ均衡器开启关闭                                
+ 802            调用函数：KT_Bus_Read46()、KT_Bus_Write46()                                                           
+ 803            全局变量：                                                                                                                                            
+ 804            输    入：bEq_Dis     （EQ开关）
+ 805            返    回：无                                                                                                                  
+ 806          *******************************************************/
+ 807          void KT_WirelessMicTx_EQSW(uint8_t bEq_Dis)
+ 808          {
+ 809   1              uint16_t regx;
+ 810   1      
+ 811   1              regx = KT_Bus_Read46(0x34);
+ 812   1              KT_Bus_Write46(0x34, ((regx & 0x7FFF) | (uint16_t)bEq_Dis << 15));
+ 813   1      }
+ 814          
+ 815          
+ 816          /***************************************************************
+ 817            函 数 名：KT_WirelessMicTx_EQGAIN                                                                             
+ 818            功能描述：EQ均衡器配置程序                                                                                            
+ 819            函数说明：配置EQ均衡器各频率增益效果                          
+ 820            调用函数：KT_Bus_Read46()、KT_Bus_Write46()                                                           
+ 821            全局变量：                                                                                                                                            
+ 822            输    入：Eq_Freq （EQ频率）                                                                          
+ 823                                  Eq_Gain （EQ增益）
+ 824            返    回：无                                                                                                                  
+ 825          ****************************************************************/
+ 826          void KT_WirelessMicTx_EQGAIN(uint8_t Eq_Freq,uint8_t Eq_Gain)
+ 827          {
+ 828   1              uint16_t regx;
+ 829   1              uint8_t temp1,temp2;     
+ 830   1          //if(Eq_Gain > EQ_GAIN_Pos12dB)
+ 831   1           //   Eq_Gain = EQ_GAIN_Pos12dB;  //防止EQ 计算超过最大
+ 832   1              temp1=Eq_Freq/3+0x34;
+ 833   1              temp2=(2-(Eq_Freq%3))*5;
+ 834   1              regx = KT_Bus_Read46(temp1);
+ 835   1              KT_Bus_Write46(temp1, ((regx & ~(0x001f<<temp2)) | ( (uint16_t)Eq_Gain << temp2 )));
+ 836   1      }  
+ 837          #endif
+ 838          
+ 839             
+ 840          #ifdef KT_RX            //使用KT接收
+ 841          /***********************************************************
+ 842            函 数 名：KT_WirelessMicTx_Pilot                                                     
+ 843            功能描述：32.768KHz导频信号打开、关闭程序                                            
+ 844            函数说明：用来选择是否使用32.768KHz导频信号                                        
+ 845            全局变量：                                                                        
+ 846            输    入：bPilot_Dis                                                                
+ 847            返    回：正确：1                 错误：0                                                               
+             -                                           
+ 848          ************************************************************/
+ 849          uint8_t KT_WirelessMicTx_Pilot(uint8_t bPilot_Dis)
+ 850          {
+ 851   1          uint16_t reg1F;
+ 852   1      
+ 853   1          reg1F = KT_Bus_Read46(0x1F);
+ 854   1      #ifdef OTHER_RX         //不使用KT 接收 
+                  KT_Bus_Write46(0x1F, (reg1F & 0xFFBF) | ( (uint8_t)bPilot_Dis << 6 ));
+              #endif
+C51 COMPILER V9.53.0.0   KT_0646M                                                          04/28/2020 09:38:51 PAGE 15  
+
+ 857   1      #ifdef KT_RX            //使用KT接收
+ 858   1          KT_Bus_Write46(0x1F, (reg1F & 0x7FFF) | ( (uint16_t)bPilot_Dis << 15 ));
+ 859   1      #endif
+ 860   1          Delay_ms(20);
+ 861   1          return(1);
+ 862   1      }
+ 863          
+ 864          
+ 865          /*********************************************************
+ 866            函 数 名：KT_WirelessMicTx_Pilot_Fdev                                                 
+ 867            功能描述：32.768KHz导频信号调制频偏大小设置程序                                    
+ 868            函数说明：cPilot_Fdev围为0-3，共4档                                                
+ 869            全局变量：                                                                        
+ 870            输    入：cPilot_Fdev                                                                
+ 871            返    回：正确：1                 错误：0                                            
+ 872          **********************************************************/
+ 873          uint8_t KT_WirelessMicTx_Pilot_Fdev(uint8_t cPilot_Fdev)
+ 874          {
+ 875   1          uint16_t reg1F;
+ 876   1      
+ 877   1          reg1F = KT_Bus_Read46(0x1F);
+ 878   1      #ifdef OTHER_RX
+                  KT_Bus_Write46(0x1F, (reg1F & 0xFFCF) | (cPilot_Fdev << 4));
+              #endif
+ 881   1      #ifdef KT_RX
+ 882   1          KT_Bus_Write46(0x1F, (reg1F & 0xFE7F) | ((uint16_t)cPilot_Fdev << 7));
+ 883   1      #endif
+ 884   1          Delay_ms(20);
+ 885   1          return(1);
+ 886   1      }
+ 887          #endif
+ 888          
+ 889          
+ 890          #ifdef RXISKT0616M_XTAL_DUAL
+              /****************************************************************************
+                函 数 名：KT_WirelessMicTx_Calc_ChanReg                                    
+                功能描述：晶体的频率控制字计算                                                
+                函数说明：输入以KHz为单位的VCO震荡频率;                                            
+                           计算结果存在*chan_ptr,*chan_frac_ptr,*chan_frac_msb_ptr中                
+                全局变量：                                                                        
+                输    入：Freq （输入以KHz为单位的VCO频率）                                        
+                返    回：正确：1    错误：0                                                            
+              *****************************************************************************/
+              uint8_t KT_WirelessMicTx_Calc_ChanReg_Old(int32_t Freq, uint16_t *chan_ptr, INT16 *chan_frac_ptr, 
+                                                     uint8_t *chan_frac_msb_ptr, uint16_t xtal_freq)
+              {
+                  *chan_ptr = Freq / xtal_freq;
+                  Freq = Freq % xtal_freq; 
+                  *chan_frac_ptr = (Freq << 16) / xtal_freq;
+                  if ((Freq <= 40) && (Freq >= 0))
+                  {
+                      *chan_frac_ptr = 0xffff;
+                      *chan_frac_msb_ptr =3;
+                  }
+                  else if ((Freq < xtal_freq ) && (Freq >= xtal_freq - 40))
+                  {
+                      (*chan_ptr)++; 
+                      *chan_frac_ptr = 0xffff;
+                      *chan_frac_msb_ptr = 3;
+                  }
+                  else if ( (Freq >= (xtal_freq / 2 - 40)) && (Freq <= (xtal_freq / 2 + 40)) )
+                  {
+C51 COMPILER V9.53.0.0   KT_0646M                                                          04/28/2020 09:38:51 PAGE 16  
+
+                      *chan_frac_ptr = 0x7fff;
+                      *chan_frac_msb_ptr = 0;
+                  }
+                  else if ( Freq > (xtal_freq >> 1) )
+                  {
+                      (*chan_ptr)++; 
+                      *chan_frac_msb_ptr = 3;
+                  }
+                  else    
+                  {
+                      *chan_frac_msb_ptr = 0;
+                  }
+                  return(1);
+              }
+              
+              bit selectXtalOld(int32_t Freq)
+              {
+                  uint16_t chan0,chan1;
+                  INT16 chan_frac0,chan_frac1;
+                  uint8_t chan_frac_msb0,chan_frac_msb1;
+                  INT16 mod0,mod1,mod2,mod3;
+              
+                  Freq<<=1;
+                  KT_WirelessMicTx_Calc_ChanReg_Old(Freq, &chan0, &chan_frac0, &chan_frac_msb0,24000);
+                  KT_WirelessMicTx_Calc_ChanReg_Old(Freq, &chan1, &chan_frac1, &chan_frac_msb1,24576);
+                  mod0 = chan_frac0;
+                  mod1 = chan_frac1;
+                  mod2 = chan_frac0 << 1;
+                  mod3 = chan_frac1 << 1;
+                  if(mod0 < 0)
+                      mod0=~mod0;             //mod0=abs(mod0);
+                  if(mod1 < 0)
+                      mod1=~mod1;             //mod1=abs(mod1);
+                  if(mod2 < 0)
+                      mod2=~mod2;             //mod2=abs(mod2);
+                  if(mod3 < 0)
+                      mod3=~mod3;             //mod3=abs(mod3);
+                  if(mod2 < mod0)
+                      mod0 = mod2;
+                  if(mod3 < mod1)
+                      mod1 = mod3;
+                  if(mod0<mod1)
+                  {
+                      return(XTAL_24P576M_FREQ);
+                  }
+                  else 
+                      return(XTAL_24M_FREQ);
+              }
+              #endif
+ 968          
+ 969           
+ 970          
+ 971          
+ 972          //------------------------------------------------------------------------------------
+ 973          //函 数 名：ZK_set_EQ
+ 974          //功能描述:     设置EQ曲线
+ 975          //设计公司：广州每芯科技有限公司
+ 976          //设 计 者：周文波                                      时间：2018年1月6日
+ 977          //修 改 者：                                            时间：  
+ 978          //版    本：V1.0                
+ 979          //-----------------------------------------------------------------------------------
+ 980          #ifdef OPEN_EQ                  
+C51 COMPILER V9.53.0.0   KT_0646M                                                          04/28/2020 09:38:51 PAGE 17  
+
+ 981          uint8_t code EqTable[15] = 
+ 982          {
+ 983                  12,12,10,11,11,
+ 984                  11,11,12,12,12,
+ 985                  12,13,14,13,12
+ 986          };
+ 987          void SettingEQ(void)
+ 988          {
+ 989   1              uint8_t i;
+ 990   1          KT_WirelessMicTx_EQSW(1);  //打开EQ
+ 991   1              for(i=0;i < 15;i++)
+ 992   1              {        
+ 993   2              KT_WirelessMicTx_EQGAIN(i,EqTable[i]);
+ 994   2              }
+ 995   1      
+ 996   1      }
+ 997          
+ 998          #endif
+ 999          void AuxDataEnSw(uint8_t State)
+1000          {
+1001   1              uint16_t regx;
+1002   1              
+1003   1              if(State)
+1004   1              {
+1005   2                      /*enable send aux Data*/
+1006   2                      regx  = KT_Bus_Read46(0x1f);
+1007   2                      regx |= (0x01 << 14);
+1008   2                      KT_Bus_Write46(0x1f,regx);
+1009   2                      Delay_ms(20);
+1010   2              }
+1011   1              else
+1012   1              {
+1013   2                      /*disable send aux Data*/
+1014   2                      regx  = KT_Bus_Read46(0x1f);
+1015   2                      regx &= ~(0x01 << 14);
+1016   2                      KT_Bus_Write46(0x1f,regx);
+1017   2                      Delay_ms(20);
+1018   2              }
+1019   1      }
+1020          
+1021           void KTWriteBPSK(u16 * buf)
+1022          {
+1023   1      //  KT_SetAuxDataState(RESET);
+1024   1      //  KT_SetAuxDataState(SET);
+1025   1              KT_Bus_Write46(AUX_ADDRA,buf[0]);
+1026   1              KT_Bus_Write46(AUX_ADDRB,buf[1]);
+1027   1              KT_Bus_Write46(AUX_ADDRC,buf[2]);
+1028   1              KT_Bus_Write46(AUX_ADDRD,buf[3]);
+1029   1      //  KT_SetAuxDataState(RESET);
+1030   1      //  KT_SetAuxDataState(SET);
+1031   1      }
+1032          
+1033           /*自动静音开关  0 open 1 close*/
+1034          void AutoMuteOn(u8 flag)
+1035          {
+1036   1              u16 regx;
+1037   1              regx = KT_Bus_Read46(0x25);
+1038   1              regx = regx & 0xdfff;//1101 1111 1111 1111
+1039   1      //      regx = regx | 0x0000;
+1040   1              regx = regx | (u16)~flag<<13;
+1041   1              KT_Bus_Write46(0x25,regx);
+1042   1      //      KT_Bus_Write( 0x25,(regx&0xc000)|(flag << 13) | (SLNC_MUTE_TIME << 8) | 
+C51 COMPILER V9.53.0.0   KT_0646M                                                          04/28/2020 09:38:51 PAGE 18  
+
+1043   1      //                   (SLNC_MUTE_LOW_LEVEL << 4) | SLNC_MUTE_HIGH_LEVEL );
+1044   1              
+1045   1      }
+1046          
+1047          /*检查自动静音*/
+1048          FlagStatus KT_WirelessMicTxCheckVolume(void)
+1049          {
+1050   1              if(!(0x4000&(KT_Bus_Read46(0x25))))//有声音
+1051   1              {       
+1052   2                      return SET;
+1053   2              }
+1054   1              return RESET;
+1055   1      }
+1056           
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   2948    ----
+   CONSTANT SIZE    =     54    ----
+   XDATA SIZE       =      1    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      2      90
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

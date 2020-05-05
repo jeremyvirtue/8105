@@ -1,0 +1,597 @@
+C51 COMPILER V9.56.0.0   LCD_49                                                            03/22/2019 12:02:52 PAGE 1   
+
+
+C51 COMPILER V9.56.0.0, COMPILATION OF MODULE LCD_49
+OBJECT MODULE PLACED IN .\Objects\LCD-49.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE User\LCD-49.c OMF2 OPTIMIZE(8,SPEED) BROWSE INCDIR(.\User;.\User\Drive) 
+                    -DEBUG PRINT(.\Listings\LCD-49.lst) TABS(2) OBJECT(.\Objects\LCD-49.obj)
+
+line level    source
+
+   1          /*        IIC-LCD-128-64驱动程序
+   2          
+   3          */
+   4          #include "LCD-49.h"
+   5          #include "System.h"
+   6          #include "CharMatrix.h"
+   7          #include "math.h"
+   8          #include <intrins.h>
+   9          
+  10          //LCD lcd;
+  11          #define SCL_XS_SET    LCD_SCL=1
+  12          #define SCL_XS_RESET  LCD_SCL=0
+  13          
+  14          #define SDA_XS_SET    LCD_SDA=1
+  15          #define SDA_XS_RESET  LCD_SDA=0
+  16          
+  17          
+  18          static void Nop()
+  19          {
+  20   1      }
+  21          
+  22          /*        总线开始
+  23          * 
+  24          * 
+  25          * 
+  26          */
+  27          static void Start(void)
+  28          {
+  29   1        //Nop();
+  30   1        SCL_XS_SET;
+  31   1        //Nop();
+  32   1        SDA_XS_SET;
+  33   1        //Nop();
+  34   1        SDA_XS_RESET;
+  35   1        //Nop();
+  36   1        SCL_XS_RESET;
+  37   1        //Nop();
+  38   1      }
+  39          /*        总线结束
+  40          * 
+  41          * 
+  42          * 
+  43          */
+  44          static void Stop(void)
+  45          {
+  46   1      //  SCL_XS_RESET;
+  47   1        //Nop();
+  48   1        SCL_XS_SET;
+  49   1        //Nop();
+  50   1        SDA_XS_RESET;
+  51   1        //Nop();
+  52   1        SDA_XS_SET;
+  53   1        //Nop();
+  54   1      }
+C51 COMPILER V9.56.0.0   LCD_49                                                            03/22/2019 12:02:52 PAGE 2   
+
+  55          
+  56          /*        读总线响应
+  57          * re:SET-有应答   RESET-无应答
+  58          * 
+  59          * 
+  60          */
+  61          static void GetAck(void)
+  62          {
+  63   1        SCL_XS_SET;
+  64   1        SCL_XS_RESET;
+  65   1      }
+  66          
+  67          
+  68          /*        总线发送字节数据
+  69          * 
+  70          * 
+  71          * 
+  72          */
+  73          static  void TxByte(u8 by)
+  74          {
+  75   1        u8 i;
+  76   1        //Nop();
+  77   1        SCL_XS_RESET;
+  78   1        for (i=0;i<8;i++)
+  79   1        { 
+  80   2          //Nop();
+  81   2          if ((by & 0x80)==0x80)
+  82   2            SDA_XS_SET;
+  83   2          else
+  84   2            SDA_XS_RESET;
+  85   2          by <<= 1;
+  86   2          //Nop();
+  87   2          SCL_XS_SET;
+  88   2          //Nop();
+  89   2          SCL_XS_RESET;
+  90   2        }
+  91   1      }
+  92          
+  93          /*        发送命令
+  94          * 
+  95          * 
+  96          * 
+  97          */
+  98          static void Write(LCDDataType type,u8 da)
+  99          {
+ 100   1        Start();
+ 101   1        TxByte(0x78);
+ 102   1        GetAck();
+ 103   1        TxByte(type);
+ 104   1        GetAck();
+ 105   1        TxByte(da);
+ 106   1        GetAck();
+ 107   1        Stop();
+ 108   1      }
+ 109          
+ 110          
+ 111          /*        坐标设置
+ 112          * 
+ 113          * 
+ 114          * 
+ 115          */
+ 116          static void SetPos(u8 x,u8 y)
+C51 COMPILER V9.56.0.0   LCD_49                                                            03/22/2019 12:02:52 PAGE 3   
+
+ 117          {
+ 118   1        if (x>(LCD_X_MAX-1))
+ 119   1        {
+ 120   2          x=x%LCD_X_MAX;
+ 121   2        }
+ 122   1        if (y>(LCD_Y_MAX-1))
+ 123   1        {
+ 124   2          y=y%LCD_Y_MAX;
+ 125   2        }
+ 126   1        
+ 127   1        x += 32;
+ 128   1        Write(LCD_COMMAND,0xB0+y);
+ 129   1        Write(LCD_COMMAND,((x&0xF0)>>4)|0x10);
+ 130   1        Write(LCD_COMMAND,x&0x0F);
+ 131   1      }
+ 132          
+ 133          
+ 134          
+ 135          
+ 136          
+ 137          
+ 138          /*        在指定位置显示一个字符,包括部分字符
+ 139          * x:0~127
+ 140          * y:0~63
+ 141          * size:选择字体 16/12
+ 142          */
+ 143           void ShowChar(u8 x,u8 y,u8 chr,LCDCharSize si,LCDSaveIn save)
+ 144          {     
+ 145   1        u8 i=0,c=0;   
+ 146   1        c=chr-' ';//得到偏移后的值
+ 147   1        if(x>LCD_X_MAX-1)
+ 148   1        {
+ 149   2          x=0;y=y+2;
+ 150   2        }
+ 151   1        if(si ==LCD_SIZE_16)
+ 152   1        {
+ 153   2          switch (save)
+ 154   2          {
+ 155   3            case LCD_SAVE_SHOW:
+ 156   3            {
+ 157   4      //        for(i=0;i<8;i++)
+ 158   4      //          oledBuf[x+i][y]=F8X16[c*16+i];
+ 159   4      //        for(i=0;i<8;i++)
+ 160   4      //          oledBuf[x+i][y+1]=F8X16[c*16+i+8];
+ 161   4            }
+ 162   3              break;
+ 163   3            case LCD_SAVE_BUF:
+ 164   3            {
+ 165   4      //        for(i=0;i<8;i++)
+ 166   4      //          lcdTemBuf[x+i][y]=F8X16[c*16+i];
+ 167   4      //        for(i=0;i<8;i++)
+ 168   4      //          lcdTemBuf[x+i][y+1]=F8X16[c*16+i+8];
+ 169   4            }
+ 170   3              break;
+ 171   3            case LCD_SAVE_IIC:
+ 172   3            {
+ 173   4              SetPos(x,y);  
+ 174   4              for(i=0;i<8;i++)
+ 175   4                Write(LCD_DATA,F8X16[c*16+i]);
+ 176   4              SetPos(x,y+1);
+ 177   4              for(i=0;i<8;i++)
+ 178   4                Write(LCD_DATA,F8X16[c*16+i+8]);
+C51 COMPILER V9.56.0.0   LCD_49                                                            03/22/2019 12:02:52 PAGE 4   
+
+ 179   4            }
+ 180   3              break;
+ 181   3            default:
+ 182   3              break;
+ 183   3          }
+ 184   2        }
+ 185   1        else 
+ 186   1        { 
+ 187   2          switch (save)
+ 188   2          {
+ 189   3            case LCD_SAVE_SHOW:
+ 190   3            {
+ 191   4      //        for(i=0;i<6;i++)
+ 192   4      //          oledBuf[x+i][y]=F6x8[c][i];   
+ 193   4            }
+ 194   3              break;
+ 195   3            case LCD_SAVE_BUF:
+ 196   3            {
+ 197   4      //        for(i=0;i<6;i++)
+ 198   4      //          lcdTemBuf[x+i][y]=F6x8[c][i]; 
+ 199   4            } 
+ 200   3              break;
+ 201   3            case LCD_SAVE_IIC:
+ 202   3            {
+ 203   4              SetPos(x,y);
+ 204   4              for(i=0;i<6;i++)
+ 205   4                Write(LCD_DATA,F6x8[c][i]); 
+ 206   4            }
+ 207   3              break;
+ 208   3            default:
+ 209   3              break;
+ 210   3          }
+ 211   2        }
+ 212   1      }
+ 213          
+ 214          //显示一个字符号串
+ 215           void ShowString(u8 x,u8 y,u8 *chr,LCDCharSize si,LCDSaveIn save)
+ 216          {
+ 217   1        u8 j=0;
+ 218   1        while (chr[j]!='\0')
+ 219   1        {   
+ 220   2          ShowChar(x,y,chr[j],si,save);
+ 221   2          x+=(si);
+ 222   2          if(x>LCD_X_MAX)
+ 223   2          {
+ 224   3            x=0;
+ 225   3            y+=1;
+ 226   3          }
+ 227   2          j++;
+ 228   2        }
+ 229   1      }
+ 230          
+ 231          
+ 232          
+ 233          
+ 234           void ShowNumber(u8 x,u8 y,u32 num,LCDCharSize si,LCDSaveIn save)
+ 235          {
+ 236   1        u8 i;
+ 237   1        u8 len=0;
+ 238   1        u8 en=0;
+ 239   1        u32 tem=num;
+ 240   1        u8 show;
+C51 COMPILER V9.56.0.0   LCD_49                                                            03/22/2019 12:02:52 PAGE 5   
+
+ 241   1        while (tem)
+ 242   1        {
+ 243   2          len++;
+ 244   2          tem /=10;
+ 245   2        }
+ 246   1        
+ 247   1        for (i=0;i<len;i++)
+ 248   1        {
+ 249   2          show=(u32)(num/pow(10,(len-i-1)))%10;
+ 250   2          if (en==0 && i<(len-1))
+ 251   2          {
+ 252   3            if (show==0)
+ 253   3            {
+ 254   4              ShowChar(x+(si)*i,y,' ',si,save);
+ 255   4              continue;
+ 256   4            }
+ 257   3            else
+ 258   3              en=1;
+ 259   3          }
+ 260   2          ShowChar(x+(si)*i,y,show+'0',si,save);
+ 261   2        }
+ 262   1        if (len==0)
+ 263   1        {
+ 264   2          ShowChar(x,y,'0',si,save);
+ 265   2        }
+ 266   1      }
+ 267          
+ 268          /*        16*16中文
+ 269          *   x:x坐标
+ 270          *   y:y坐标
+ 271          *   asc:中文id
+ 272          */
+ 273           void ShowChiness(u8 x,u8 y,u8 id,LCDSaveIn save)
+ 274          {
+ 275   1        u8 X,Y;
+ 276   1        u8 len=32;//组成一个图标的字节长度
+ 277   1        u8 hi=2;//图标高度的字节数
+ 278   1        u8 xlen=len/hi; //x方向每个高度的字节数
+ 279   1        for (X=0;X<xlen;X++)
+ 280   1        {
+ 281   2          for (Y=0;Y<hi;Y++)
+ 282   2          {
+ 283   3            switch (save)
+ 284   3            {
+ 285   4              case LCD_SAVE_SHOW:
+ 286   4              {
+ 287   5      //        oledBuf[x+X][y+Y]=Chiness[id][X*hi+Y];
+ 288   5              }
+ 289   4                break;
+ 290   4              case LCD_SAVE_BUF:
+ 291   4              {
+ 292   5      //        lcdTemBuf[x+X][y+Y]=Chiness[id][X*hi+Y];
+ 293   5              }
+ 294   4                break;
+ 295   4              case LCD_SAVE_IIC:
+ 296   4              {
+ 297   5                SetPos(X+x,Y+y);
+ 298   5                Write(LCD_DATA,Chiness[id][X*hi+Y]);
+ 299   5              }
+ 300   4                break;
+ 301   4              default:
+ 302   4                break;
+C51 COMPILER V9.56.0.0   LCD_49                                                            03/22/2019 12:02:52 PAGE 6   
+
+ 303   4            }
+ 304   3              
+ 305   3          }
+ 306   2        }
+ 307   1      }
+ 308          
+ 309          
+ 310          /*        8*16图标
+ 311          *   x:x坐标
+ 312          *   y:y坐标
+ 313          *   asc:图标id
+ 314          */
+ 315           void LCDPutIcon816(u8 x,u8 y,u8 asc)
+ 316          {
+ 317   1        u8 X,Y,i;
+ 318   1        u8 len=16;//组成一个图标的字节长度
+ 319   1        u8 hi=2;//图标高度的字节数
+ 320   1        u8 xlen=len/hi; //x方向每个高度的字节数
+ 321   1        for (X=0;X<xlen;X++)
+ 322   1        {
+ 323   2          for (Y=0;Y<hi;Y++)
+ 324   2          {
+ 325   3      //      oledBuf[x+X][y+Y]=Icon816[asc][X*hi+Y];
+ 326   3            SetPos(X+x,Y+y);
+ 327   3            for(i=0;i<6;i++)
+ 328   3              Write(LCD_DATA,Icon816[asc][X*hi+Y]); 
+ 329   3          }
+ 330   2        }
+ 331   1      }
+ 332          /*        5*8喇叭图标
+ 333          *   x:x坐标
+ 334          *   y:y坐标
+ 335          */
+ 336           void ShowSpeaker(u8 x,u8 y,FlagStatus set)
+ 337          {
+ 338   1        static u8 xdata tem=0;//图标的起始地址
+ 339   1        u8  X;
+ 340   1        u8 len=5;//组成一个图标的字节长度
+ 341   1        tem++;
+ 342   1        if (tem>3)
+ 343   1          tem=0;
+ 344   1        if (!set)
+ 345   1        {
+ 346   2          for (X=0;X<len;X++)
+ 347   2          {
+ 348   3        //     oledBuf[x+X][y]=IconSpeaker[tem][X];
+ 349   3              SetPos(X+x,y);
+ 350   3              Write(LCD_DATA,IconSpeaker[tem][X]); 
+ 351   3          }
+ 352   2        }
+ 353   1        else
+ 354   1        {
+ 355   2          for (X=0;X<len;X++)
+ 356   2          {
+ 357   3        //     oledBuf[x+X][y]=IconSpeaker[tem][X];
+ 358   3              SetPos(X+x,y);
+ 359   3              Write(LCD_DATA,IconSpeaker[3][X]); 
+ 360   3          }
+ 361   2        }
+ 362   1      }
+ 363          /*        5*8电池电量图标
+ 364          *   x:x坐标
+C51 COMPILER V9.56.0.0   LCD_49                                                            03/22/2019 12:02:52 PAGE 7   
+
+ 365          *   y:y坐标
+ 366          *   value:电量级别
+ 367          */
+ 368           void ShowBattery(u8 x,u8 y,LCDBatteryValue value,FlagStatus set)
+ 369          {
+ 370   1        static xdata LCDBatteryValue tem=0;
+ 371   1        u8 len=5;//组成一个图标的字节长度
+ 372   1        u8  X;
+ 373   1        if ( set && (value<LCD_BATTERY_5))  //充电模式
+ 374   1        {
+ 375   2          tem++;
+ 376   2          if (tem>value)
+ 377   2            tem=1;
+ 378   2        }
+ 379   1        else
+ 380   1        {
+ 381   2          if (value==0)
+ 382   2          {
+ 383   3            if (tem==0)
+ 384   3            {
+ 385   4              tem=1;
+ 386   4            }
+ 387   3            else
+ 388   3            {
+ 389   4              tem=0;
+ 390   4            }
+ 391   3          }
+ 392   2          else
+ 393   2          {
+ 394   3            tem=value;
+ 395   3          }
+ 396   2        }
+ 397   1        
+ 398   1          //左边部分
+ 399   1        for (X=0;X<len;X++)
+ 400   1        {
+ 401   2          SetPos(X+x,y);
+ 402   2          if (tem<LCD_BATTERY_4)
+ 403   2            Write(LCD_DATA,IconBattery[tem][X]); 
+ 404   2          else
+ 405   2            Write(LCD_DATA,IconBattery[LCD_BATTERY_3][X]); 
+ 406   2          
+ 407   2        }
+ 408   1          x+=len;
+ 409   1          //右边部分
+ 410   1        for (X=0;X<len;X++)
+ 411   1        {
+ 412   2          SetPos(X+x,y);  
+ 413   2          if (tem==0)
+ 414   2            Write(LCD_DATA,IconBattery[0][X]);
+ 415   2          else if (tem<LCD_BATTERY_4)
+ 416   2            Write(LCD_DATA,IconBattery[LCD_BATTERY_4][X]);//只显示右框
+ 417   2          else
+ 418   2            Write(LCD_DATA,IconBattery[LCD_BATTERY_5][X]);//右框+
+ 419   2        }
+ 420   1      }
+ 421          /*        5*8图标
+ 422          *   x:x坐标
+ 423          *   y:y坐标
+ 424          *   asc:图标id
+ 425          */
+ 426           void Show58Icons(u8 x,u8 y,LCDIconsId id)
+C51 COMPILER V9.56.0.0   LCD_49                                                            03/22/2019 12:02:52 PAGE 8   
+
+ 427          {
+ 428   1        u8  X;
+ 429   1        for (X=0;X<5;X++)
+ 430   1        {
+ 431   2      //     oledBuf[x+X][y]=Icons[id][X];
+ 432   2            SetPos(X+x,y);
+ 433   2              Write(LCD_DATA,Icons[id][X]); 
+ 434   2        }
+ 435   1      }
+ 436          
+ 437          /*        清屏
+ 438          * 清完屏,整个屏幕是黑色的!和没点亮一样
+ 439          * 
+ 440          * 
+ 441          */
+ 442          void LCDClear(u8 da,u8 time)  
+ 443          {  
+ 444   1        u8 x,y;
+ 445   1        if (time>0)
+ 446   1        {
+ 447   2          for (x=0;x<LCD_X_LEN;x++)
+ 448   2          {
+ 449   3            for (y=0;y<LCD_Y_LEN;y++)
+ 450   3            {
+ 451   4              SetPos(x,y);
+ 452   4              Write(LCD_DATA,da);
+ 453   4            }
+ 454   3              os.DelayMS(time);
+ 455   3          }
+ 456   2        }
+ 457   1        else
+ 458   1        {
+ 459   2          for (y=0;y<LCD_Y_LEN;y++)
+ 460   2          {
+ 461   3            Write(LCD_COMMAND,0xB0+y);
+ 462   3            Write(LCD_COMMAND,0x00);
+ 463   3            Write(LCD_COMMAND,0x12);
+ 464   3            for (x=0;x<LCD_X_LEN;x++)
+ 465   3            {
+ 466   4              Write(LCD_DATA,0);
+ 467   4            }
+ 468   3          }
+ 469   2        }
+ 470   1      }
+ 471          
+ 472          
+ 473          
+ 474          
+ 475          //关闭LCD显示     
+ 476          static void Off(void)
+ 477          {
+ 478   1        Write(LCD_COMMAND,0x8D);  //SET DCDC命令
+ 479   1        Write(LCD_COMMAND,0x10);  //DCDC OFF
+ 480   1        Write(LCD_COMMAND,0xAE);  //DISPLAY OFF
+ 481   1      }   
+ 482          static void On(void)  
+ 483          {  
+ 484   1        Write(LCD_COMMAND,0x8D);  //SET DCDC命令
+ 485   1        Write(LCD_COMMAND,0x14);  //DCDC ON
+ 486   1        Write(LCD_COMMAND,0xAF);  //DISPLAY ON
+ 487   1      }
+ 488          
+C51 COMPILER V9.56.0.0   LCD_49                                                            03/22/2019 12:02:52 PAGE 9   
+
+ 489          
+ 490          
+ 491          
+ 492          void LCDInit(void)
+ 493          {
+ 494   1      //  lcd.Clear=Clear;
+ 495   1      ////  lcd.ClearBuf=ClearBuf;
+ 496   1      //  lcd.ShowChar=ShowChar;
+ 497   1      //  lcd.ShowNumber=ShowNumber;
+ 498   1      //  lcd.ShowString=ShowString;
+ 499   1      //  lcd.ShowSpeaker=ShowSpeaker;
+ 500   1      //  lcd.Show58Icons=Show58Icons;
+ 501   1      //  lcd.ShowBattery=ShowBattery;
+ 502   1      //  lcd.ShowChiness=ShowChiness;
+ 503   1      //  lcd.Swing=LcdSwing;
+ 504   1      //  lcd.Move=Move;
+ 505   1      //  lcd.ShowPage=ShowPage;
+ 506   1      //  lcd.Scan=Scan;
+ 507   1        
+ 508   1      //  
+ 509   1      //  os.DelayMS(100);
+ 510   1        Write(LCD_COMMAND,0xAE);//--display off
+ 511   1        Write(LCD_COMMAND,0x00);//---set low column address
+ 512   1        Write(LCD_COMMAND,0x12);//---set high column address
+ 513   1        Write(LCD_COMMAND,0x00);//--set start line address  Set Mapping RAM Display Start Line (0x00~0x3F)
+ 514   1        Write(LCD_COMMAND,0xB0);//--set page address
+ 515   1        Write(LCD_COMMAND,0x81); // contract control
+ 516   1        Write(LCD_COMMAND,0xFf);//--128   
+ 517   1        Write(LCD_COMMAND,0xA1);//set segment remap 
+ 518   1        Write(LCD_COMMAND,0xA6);//--normal / reverse
+ 519   1        Write(LCD_COMMAND,0xA8);//--set multiplex ratio(1 to 64)
+ 520   1        Write(LCD_COMMAND,0x1F);//--1/32 duty
+ 521   1        Write(LCD_COMMAND,0xC8);//Com scan direction
+ 522   1        Write(LCD_COMMAND,0xD3);//-set display offset
+ 523   1        Write(LCD_COMMAND,0x00);//
+ 524   1        Write(LCD_COMMAND,0xD5);//set osc division
+ 525   1        Write(LCD_COMMAND,0x80);//
+ 526   1        Write(LCD_COMMAND,0xD9);//set pre-charge period
+ 527   1        Write(LCD_COMMAND,0x1F);//
+ 528   1        Write(LCD_COMMAND,0xDA);//set COM pins
+ 529   1        Write(LCD_COMMAND,0x12);//
+ 530   1        Write(LCD_COMMAND,0xDB);//set vcomh
+ 531   1        Write(LCD_COMMAND,0x40);//
+ 532   1        Write(LCD_COMMAND,0x8D);//set charge pump enable
+ 533   1        Write(LCD_COMMAND,0x14);//
+ 534   1        LCDClear(0,0);  
+ 535   1        Write(LCD_COMMAND,0xAF);//--turn on oled panel
+ 536   1        
+ 537   1      //  for (x=0;x<LCD_X_LEN;x++)
+ 538   1      //  {
+ 539   1      //    Write(LCD_COMMAND,0xB0+x);
+ 540   1      //    Write(LCD_COMMAND,0x00);
+ 541   1      //    Write(LCD_COMMAND,0x12);
+ 542   1      //    for (y=0;y<64;y++)
+ 543   1      //    {
+ 544   1      //      Write(LCD_DATA,0);
+ 545   1      //    }
+ 546   1      //  }
+ 547   1        ShowString(12,0,"Y1000",LCD_SIZE_16,LCD_SAVE_IIC);
+ 548   1      //  ShowString(8,0,"O K",LCD_SIZE_16,LCD_SAVE_IIC);
+ 549   1      }
+ 550          
+C51 COMPILER V9.56.0.0   LCD_49                                                            03/22/2019 12:02:52 PAGE 10  
+
+ 551          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1464    ----
+   CONSTANT SIZE    =   2634    ----
+   XDATA SIZE       =      2    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----      54
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

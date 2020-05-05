@@ -1,0 +1,1 @@
+"User\specialdis.c" OMF2 ROM(COMPACT) OPTIMIZE (8,SPEED) BROWSE INCDIR(.\User;.\User\Drive) DEBUG PRINT(.\Listings\specialdis.lst) TABS (2) OBJECT(.\Objects\specialdis.obj)

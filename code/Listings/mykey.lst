@@ -1,0 +1,274 @@
+C51 COMPILER V9.59.0.0   MYKEY                                                             04/20/2019 17:56:51 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE MYKEY
+OBJECT MODULE PLACED IN .\Objects\mykey.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE User\mykey.c OMF2 ROM(COMPACT) OPTIMIZE(8,SPEED) BROWSE INCDIR(.\User;.\
+                    -User\Drive) DEBUG PRINT(.\Listings\mykey.lst) TABS(2) OBJECT(.\Objects\mykey.obj)
+
+line level    source
+
+   1          #include "mykey.h"
+   2          #include "System.h"
+   3          #include "Lcd.h"
+   4          #include  <stdlib.h>
+   5          #include "ADC.h"
+   6          u8 xdata pNewKey=0;
+   7          
+   8          KeyS_Type xdata  Trg=0;     //È«¾Ö±äÁ¿£º´æÓĞ±¾´Î¶Á¼üÊ±µÄ°´¼ü´¥·¢×´Ì¬
+   9          KeyS_Type xdata Cont=0;     //È«¾Ö±äÁ¿£º´æÓĞ±¾´Î¶Á¼üÊ±µÄÊµÊ±¼üÌ¬
+  10          u16 xdata KeyTime=0;  //È«¾Ö±äÁ¿£º´æÓĞ±¾´Î¶Á¼üÊ±µ±Ç°¼üÌ¬³ÖĞøµÄÊ±³¤
+  11          static KeyS_Type xdata KeyStable=0; //´æÓĞÎÈ¶¨(Ïû³ı¶¶¶¯ºó)µÄ¼üÌ¬(¶Á¼üÇ°)
+  12          u16 xdata adc1;
+  13          u8 xdata New_KeyBuff[KEYBUFFSIZE];
+  14          
+  15          
+  16          FlagStatus KeyCheck1(u16 keyValue,const u16 adc1)
+  17          {
+  18   1        if (KEY_VALUE_INC>abs(keyValue-adc1))
+  19   1          return SET;
+  20   1        else
+  21   1          return RESET;
+  22   1      }
+  23          
+  24          
+  25          KeyS_Type GetHalKeyCode(void)
+  26          {
+  27   1        KeyS_Type ktmp=0;
+  28   1        if(!KEY_POWER)    ktmp|=1<<KEY_ID_POWER;
+  29   1        adc1=ADCGetValue();
+  30   1        if(adc1 > 0)
+  31   1        {
+  32   2          if(KeyCheck1(KEY_VALUE_1,adc1))       ktmp|=1<<KEY_ID_1;
+  33   2          if(KeyCheck1(KEY_VALUE_2,adc1))       ktmp|=1<<KEY_ID_2;
+  34   2        }
+  35   1          return ktmp;
+  36   1      }
+  37          
+  38          //°´¼üÉ¨Ãèº¯Êı£ºÒ»°ãÓÉSystickÖĞ¶Ï·şÎñ³ÌĞòÒÔ5msÒ»´ÎµÄÊ±¼ä½ÚÅÄµ÷ÓÃ´Ëº¯Êı
+  39          //²ÉÓÃÁË¼üÅÌ×ÔÊÊÓ¦±äÆµÉ¨Ãè´ëÊ©£¬ÔÚ¼üÅÌÕı³£ÎÈ¶¨ÆÚ¼ä£¨·ÇÏû¶¶ÆÚ¼ä£©É¨ÃèÆµÂÊ½µµÍÒÔ¼õÉÙCPU×ÊÔ´Õ¼ÓÃ
+  40          //¸Ãº¯Êı½«Ó°ÏìÈ«¾Ö±äÁ¿£ºÏû³ı¶¶¶¯ºóµÄÎÈ¶¨¼üÌ¬ÖµKeyStable¼°ÀÛ¼ÆÊ±³¤KeyTime
+  41          void Key_Scan_Stick(void)
+  42          {
+  43   1        KeyS_Type KeyValTemp;
+  44   1        static KeyS_Type KeyValTempOld=0;
+  45   1        static u16 debounce_cnt=0;
+  46   1        static u16 debouncing=0;
+  47   1        
+  48   1        KeyTime++;//ÔÚÎÈ¶¨¼üÌ¬£¨°üÀ¨ÎŞ¼ü£©×´Ì¬ÏÂ£¬È«¾Ö±äÁ¿KeyTimeÊÇ³ÖĞøÔö¼ÓµÄ
+  49   1        if((!debouncing) && (KeyTime%NORMAL_SCAN_FREQ))//·ÇÏû¶¶ÆÚ¼äÇÒÀÛ¼Æ¼ÆÊ±²»ÊÇ6µÄ±¶Êı(¼´6*5£½30ms²ÅÉ¨ÃèÒ»´Î)
+  50   1          return; //Ôò²»É¨Ãè¼üÅÌÖ±½Ó·µ»Ø£¬ÕâÀï¿Éµ÷ÕûNORMAL_SCAN_FREQÎªÆäËüÊı£¬¹À¼Æ×î´óµ½40¼´120msÉ¨ÃèÒ»´Î¶¼ÎÊÌâ²»´
+             -óµÄ¡£
+  51   1        
+  52   1        KeyValTemp=GetHalKeyCode();//É¨Ãè¼üÅÌ£¬µÃµ½ÊµÊ±¼üÖµ£¨ºÏ²¢£©£¬¿É´æ16¸ö¼üÖµ£¨°´ÏÂÏàÓ¦Î»Îª1ËÉ¿ªÎª0£©;
+  53   1        
+C51 COMPILER V9.59.0.0   MYKEY                                                             04/20/2019 17:56:51 PAGE 2   
+
+  54   1        if(KeyValTemp!=KeyStable) //Èç¹ûµ±Ç°Öµ²»µÈÓÚ¾É´æÖµ£¬¼´¼üÖµÓĞ±ä»¯
+  55   1        {
+  56   2          debouncing=1;//±êÊ¾ÎªÏû¶¶ÆÚ
+  57   2          if(!(KeyValTemp^KeyValTempOld))//Èç¹ûÁÙÊ±Öµ²»ÎÈ¶¨£¨¼´ĞÂ¼üÖµÓĞ±ä»¯£©
+  58   2          {
+  59   3            debounce_cnt=0;
+  60   3            KeyValTempOld=KeyValTemp;
+  61   3          }
+  62   2          else//ÁÙÊ±ÖµÎÈ¶¨
+  63   2          {
+  64   3           if(++debounce_cnt >= DEBOUNCE_TICKS) 
+  65   3           {
+  66   4            KeyStable = KeyValTemp;//¼üÖµ¸üĞÂÎªµ±Ç°Öµ.
+  67   4            debounce_cnt = 0;//²¢¸´Î»Ïû¶¶¼ÆÊıÆ÷.
+  68   4            KeyTime=1; //ĞÂ¼üÖµÀÛ¼ÆÊ±³¤¸´Î»Îª1¸öÊ±¼äµ¥Î»
+  69   4            debouncing=0;//Ïû¶¶ÆÚ½áÊø
+  70   4           }
+  71   3          } 
+  72   2        } 
+  73   1        else //Èç¹û¼üÖµÈÔµÈÓÚ¾É´æÖµ£º
+  74   1        { //Ôò¸´Î»Ïû¶¶¼ÆÊıÆ÷£¨×¢Òâ£ºÖ»ÒªÏû¶¶ÖĞÍ¾¶Áµ½Ò»´Î¼üÖµµÈÓÚ¾É´æÖµ£¬Ïû¶¶¼ÆÊıÆ÷¾ù´Ó0¿ªÊ¼ÖØĞÂ¼ÆÊı£©.
+  75   2          debounce_cnt = 0;
+  76   2          KeyValTempOld=KeyValTemp;
+  77   2        }
+  78   1      }
+  79          #define THE_KEY_IS_OFF      (!(Cont & KeyOnCode))
+  80          #define THE_KEY_IS_ON       (Cont & KeyOnCode)
+  81          #define THE_KEY_PRESSED     ((Trg & KeyOnCode) && (Cont & KeyOnCode))
+  82          
+  83          u8 Get_Key_State(u8 KeyNum)
+  84          {
+  85   1        //°´¼ü¼ÇÒä×´Ì¬(Ã¿×Ö½ÚµÍËÄÎ»´æstate£¬¸ß4Î»´ærepeat)
+  86   1        static u8 KeyState[KeyNumMax];
+*** ERROR C202 IN LINE 86 OF User\mykey.c: 'KeyNumMax': undefined identifier
+*** ERROR C136 IN LINE 86 OF User\mykey.c: invalid dimension size: [0]
+  87   1        
+  88   1        KeyS_Type KeyOnCode;
+  89   1        u8 i,state,repeat,event=0;
+  90   1        if(KeyNum==KB_CLR) //²ÎÊıÎªKB_CLRÊ±£¬ÔòÏû³ıËùÓĞ°´¼ü¼ÇÒä×´Ì¬
+*** ERROR C202 IN LINE 90 OF User\mykey.c: 'KB_CLR': undefined identifier
+  91   1        {
+  92   2          for(i=0;i<KeyNumMax;i++) KeyState[i]=0;
+*** ERROR C202 IN LINE 92 OF User\mykey.c: 'KeyNumMax': undefined identifier
+  93   2          return 0;
+  94   2        }
+  95   1        
+  96   1        KeyOnCode=(KeyS_Type)1<<KeyNum;
+  97   1        state=KeyState[KeyNum]&0x0f; //È¡ÏàÓ¦µÄ¼ÇÒä×´Ì¬Öµ
+  98   1        repeat=KeyState[KeyNum]>>4;
+  99   1        
+ 100   1        if(Trg && (Trg!=KeyOnCode)) state=0; //³öÏÖÆäËü¼ü£¬Ôò×´Ì¬Çå0
+ 101   1        
+ 102   1        switch (state) 
+ 103   1        {
+ 104   2        case 0://×´Ì¬0£º¼üÍêÈ«ËÉ¿ª
+ 105   2          if(THE_KEY_PRESSED) 
+ 106   2            { //³õ´Î°´¼ü´¥·¢²¢ÓĞĞ§
+ 107   3            event = (u8)PRESS_DOWN;
+*** ERROR C202 IN LINE 107 OF User\mykey.c: 'PRESS_DOWN': undefined identifier
+ 108   3            repeat = 1;
+ 109   3            state = 1;//³õ´Î°´¼üÓĞĞ§£¬±ä³É×´Ì¬1
+ 110   3            } 
+C51 COMPILER V9.59.0.0   MYKEY                                                             04/20/2019 17:56:51 PAGE 3   
+
+ 111   2            else //ÎŞĞ§µçÆ½£¬¼´°´¼üÎªËÉ¿ª×´Ì¬
+ 112   2              event = (u8)NONE_PRESS;
+*** ERROR C202 IN LINE 112 OF User\mykey.c: 'NONE_PRESS': undefined identifier
+ 113   2          break;
+ 114   2      
+ 115   2        case 1://×´Ì¬1£º³õ´Î°´¼ü´¥·¢²¢ÓĞĞ§
+ 116   2          if(THE_KEY_IS_OFF) { //¼ì²âµ½°´¼üËÉ¿ª   
+ 117   3            event = (u8)PRESS_UP;
+*** ERROR C202 IN LINE 117 OF User\mykey.c: 'PRESS_UP': undefined identifier
+ 118   3            state = 2;//°´¼ü°´ÏÂºóËÉ¿ª£¬±ä³É×´Ì¬2
+ 119   3            }
+ 120   2           else if(KeyTime > LONG_TICKS) {//°´¼üÎ´ËÉ¿ª£¬ÇÒ³ÖĞøÊ±¼äÒÑ¾­³¬¹ıLONG_TICKS
+*** ERROR C202 IN LINE 120 OF User\mykey.c: 'LONG_TICKS': undefined identifier
+ 121   3            event = (u8)LONG_RRESS_START;
+*** ERROR C202 IN LINE 121 OF User\mykey.c: 'LONG_RRESS_START': undefined identifier
+ 122   3            state = 5;//¼´³¤°´´¥·¢Æô¶¯£¬±ä³É×´Ì¬5
+ 123   3            }
+ 124   2          break;
+ 125   2      
+ 126   2        case 2://×´Ì¬2£º°´¼ü°´ÏÂºóÒÑËÉ¿ª
+ 127   2          if(THE_KEY_PRESSED) { //ÔÙ´Î¼ì²âµ½°´ÏÂ   
+ 128   3            event = (u8)PRESS_DOWN;
+*** ERROR C202 IN LINE 128 OF User\mykey.c: 'PRESS_DOWN': undefined identifier
+ 129   3            repeat++;//ÖØ°´´ÎÊıÀÛ¼Æ
+ 130   3            if(repeat == 2) state = 3;//Èç¹ûÖØ°´´ÎÊıµÈÓÚ2,Ôò±ä³É×´Ì¬3
+ 131   3            } 
+ 132   2          else //³ÖĞøËÉ¿ª
+ 133   2            {
+ 134   3             if(KeyTime > SHORT_TICKS)  
+*** ERROR C202 IN LINE 134 OF User\mykey.c: 'SHORT_TICKS': undefined identifier
+ 135   3              {//Èç¹ûËÉ¿ªÊ±¼ä³¬¹ıSHORT_TICKS£¬¼´Ò»´Î°´¼ü½áÊø
+ 136   4               state = 0;//Òò°´¼üËÉ¿ªÊ±¼ä³¬¹ıSHORT_TICKS£¬Ôò¸´Î»³É×´Ì¬0 
+ 137   4               if(repeat==1) event=(u8)SINGLE_CLICK;//´ÎÊıÎª1µÄÇé¿öÏÂ´¥·¢µ¥»÷ÊÂ¼ş
+*** ERROR C202 IN LINE 137 OF User\mykey.c: 'SINGLE_CLICK': undefined identifier
+ 138   4               else if(repeat==2) event=(u8)DOUBLE_CLICK;//ÖØ°´´ÎÊıÎª2µÄÇé¿öÏÂ´¥·¢Ë«»÷ÊÂ¼ş
+*** ERROR C202 IN LINE 138 OF User\mykey.c: 'DOUBLE_CLICK': undefined identifier
+ 139   4              }
+ 140   3            } //Òşº¬£ºÈç¹ûËÉ¿ªÊ±¼ä»¹Ã»ÓĞ³¬¹ıSHORT_TICKS£¬ÈÔÈ»Î¬³Ö×´Ì¬2£¬ÓĞ´ıºóĞøÅĞ¶Ï    
+ 141   2          break;
+ 142   2      
+ 143   2        case 3://×´Ì¬3£º°´ÏÂ¡¢ËÉ¿ª¡¢ÓÖ°´ÏÂ£¨¼´µÚ¶ş´Î°´ÏÂ£©        
+ 144   2          if(THE_KEY_IS_OFF)  //¼ì²âµ½°´¼üËÉ¿ª
+ 145   2            {
+ 146   3              event = (u8)PRESS_UP;
+*** ERROR C202 IN LINE 146 OF User\mykey.c: 'PRESS_UP': undefined identifier
+ 147   3              if(KeyTime < SHORT_TICKS) state = 2; //ËÉ¿ªÊ±¼äĞ¡ÓÚSHORT_TICKS£¬»Øµ½×´Ì¬2 
+*** ERROR C202 IN LINE 147 OF User\mykey.c: 'SHORT_TICKS': undefined identifier
+ 148   3              else state = 0;//ËÉ¿ªÊ±¼ä´óÓÚSHORT_TICKS£¬Ôò±ä³É×´Ì¬0
+ 149   3            }//Òşº¬£ºÈç¹ûÈÔ°´ÏÂÔòÍ£ÁôÔÚ×´Ì¬3µÈ´ıËÉ¿ª£¨µÚ¶ş´Î°´ÏÂÃ»ÓĞ³¤°´Ö®Ëµ£©
+ 150   2          break;
+ 151   2      
+ 152   2        case 5://×´Ì¬5£º³¤°´´¥·¢ÒÑ¾­Æô¶¯
+ 153   2          if(THE_KEY_IS_ON)  //Èç¹û°´¼üÈÔ³ÖĞø°´ÏÂ       
+ 154   2             event = (u8)LONG_PRESS_HOLD;//³¤°´²¢±£³Ö°´¼üÊÂ¼ş³ÉÁ¢
+*** ERROR C202 IN LINE 154 OF User\mykey.c: 'LONG_PRESS_HOLD': undefined identifier
+ 155   2          else { //Èç¹û°´¼üËÉ¿ª
+ 156   3            event = (u8)PRESS_UP;
+*** ERROR C202 IN LINE 156 OF User\mykey.c: 'PRESS_UP': undefined identifier
+ 157   3            state = 0; //Ôò»Ö¸´µ½×´Ì¬0
+ 158   3            }
+ 159   2          break;
+ 160   2        }
+C51 COMPILER V9.59.0.0   MYKEY                                                             04/20/2019 17:56:51 PAGE 4   
+
+ 161   1        KeyState[KeyNum]=state; //±£´æÏàÓ¦µÄ¼ÇÒä×´Ì¬Öµ
+ 162   1        KeyState[KeyNum]+= repeat<<4;
+ 163   1        if(event>=(u8)PRESS_DOWN) //Éè¶¨Ö»Êä³öÌØÊâ¹¦ÄÜ¼ü£¨ĞŞ¸Ä´Ë´¦¿ÉÊä³ö°´ÏÂ/ËÉ¿ªµÈÒ»°ãÊÂ¼ş£©
+*** ERROR C202 IN LINE 163 OF User\mykey.c: 'PRESS_DOWN': undefined identifier
+ 164   1      //  if(event) //Êä³öËùÓĞÊÂ¼ş    
+ 165   1          return KEYOUT_BASE_DEF+event;
+*** ERROR C202 IN LINE 165 OF User\mykey.c: 'KEYOUT_BASE_DEF': undefined identifier
+ 166   1        else return 0;
+ 167   1      }
+ 168          u8 Get_Key(void)
+ 169          {
+ 170   1        u8 i,keyp=0;
+ 171   1      /*°´¼üµÄÅĞ¶ÏÌõ¼şÉè¶¨¼¼ÇÉ£º
+ 172   1        È«¾Ö±äÁ¿TrgÖĞÌåÏÖÁË¶ÔÓ¦°´¼üµÄ´¥·¢×´Ì¬£¬ÔÚÄ³°´¼ü±»°´ÏÂºóÓĞÇÒÖ»ÓĞÒ»´Î¶ÁÈ¡µ½¶ÔÓ¦Î»Îª1;
+ 173   1        È«¾Ö±äÁ¿ Cont ÔòÌåÏÖÁËµ±Ç°°´¼üµÄ×´Ì¬£¬´¦ÓÚ°´ÏÂµÄ¶ÔÓ¦Î»Îª1£¬´¦ÓÚËÉ¿ªµÄ¶ÔÓ¦Î»Îª0;
+ 174   1        ¶øÈ«¾Ö±äÁ¿ KeyTime ÀïÃæ£¬¼ÇÂ¼ÁËµ±Ç°¼üÌ¬³ÖĞøµÄÊ±¼ä
+ 175   1      */
+ 176   1        
+ 177   1        //ÒÔÏÂÊÇ°´¼üÅĞ¶Ï£¬ÓÃ»§¿É¸ù¾İĞèÒªËæÒâÌí¼Ó»òÉ¾¸Ä£¨×¢ÊÍµôµÄ²¿·ÖÒ²¿É¸ù¾İĞèÒª×÷Îª²Î¿¼Óï¾äÊ¹ÓÃ£©
+ 178   1        
+ 179   1      //×¢Òâ£ºÅÅÔÚÇ°ÃæµÄÅĞ¶ÏÌõ¼ş¾ßÓĞ¸ßµÄÓÅÏÈ¼¶£¬Ò»µ©Ìõ¼şÂú×ã¼´¿Ì·µ»Ø£¬²»ÔÙÖ´ĞĞºóĞøÓï¾ä¡£
+ 180   1        if((Cont==(WKUP_ON+KEY0_ON)) && KEY0_PRESSED) { //WKUP+KEY0×éºÏ°´¼ü£¨ÏÈ°´ÏÂWKUPÔÙ°´ÏÂKEY0£©
+*** ERROR C202 IN LINE 180 OF User\mykey.c: 'WKUP_ON': undefined identifier
+ 181   2          Get_Key_State(KB_CLR); //¸´Î»×´Ì¬»ú£¬·ÀÖ¹±¾°´¼ü¶ÔÆä¸ÉÈÅ(±¾°´¼üÓë×´Ì¬»úÓĞ³åÍ»Ê±Çëµ÷ÓÃ´Ë¾ä)
+*** ERROR C202 IN LINE 181 OF User\mykey.c: 'KB_CLR': undefined identifier
+ 182   2          return WKUP_PLUSKEY0_PRES;} 
+*** ERROR C202 IN LINE 182 OF User\mykey.c: 'WKUP_PLUSKEY0_PRES': undefined identifier
+ 183   1      
+ 184   1      //ÒÔÏÂÊÇÊ¹ÓÃ×´Ì¬»úµÃµ½ÅĞ¶Ïµ¥»÷¡¢Ë«»÷¡¢³¤°´¡¢±£³ÖµÈ¼üÂë  
+ 185   1        for(i=0;i<KeyNumMax;i++)
+*** ERROR C202 IN LINE 185 OF User\mykey.c: 'KeyNumMax': undefined identifier
+ 186   1          {
+ 187   2            keyp=Get_Key_State(i);  
+ 188   2            if(keyp) return keyp; 
+ 189   2          }
+ 190   1        return keyp;
+ 191   1      }
+ 192          
+ 193          
+ 194          u8 Key_PrePro(void)
+ 195          {
+ 196   1        //return Get_Key(); //Ä£Ê½¶şÊ±£¬±¾º¯Êı¼ò»¯µ½Ö»ĞëÕâÒ»¾ä£¬ÒÔÏÂ¿ÉÈ«²¿É¾³ı¡£
+ 197   1        u8 newkeytmp,ret=0;
+ 198   1        newkeytmp=Get_Key();
+ 199   1        switch(newkeytmp)
+ 200   1        {
+ 201   2      //    case KEY_EVENT(KB_KEY1,DOUBLE_CLICK)://KEY1Ë«»÷£¬Ö´ĞĞÁ½µÆÍ¬Ê±·­×ª£¨½ö×÷ÎªÊ¾Àı£©
+ 202   2      //      LED0=!LED0;LED1=!LED1; //¿ØÖÆÁ½µÆ·­×ª
+ 203   2      //      break;
+ 204   2          default:
+ 205   2            ret=newkeytmp;
+ 206   2        }
+ 207   1        return ret;
+ 208   1      }
+ 209          
+ 210          void GetAndSaveKey(void)//±¾º¯ÊıÓÉSYSTICKµ÷ÓÃ£¬ÔÚºóÌ¨¶Á¼ü£¬Èç¹ûÓĞ¼üÖµÔò´æÈë°´¼ü»º³åÇø
+ 211          {
+ 212   1        u8 newkeytmp;
+ 213   1      //  if(KeyTime>=LONG_TICKS && KEY_RELEASED)
+ 214   1      //    {//¼üÅÌ³¤Ê±¼äÏĞÖÃ£¬Ö±½Ó·µ»Ø£¨¾ø´ó²¿·ÖÊ±¼ä»ù±¾¶¼ÊÇÕâÖÖ×´Ì¬£¬´Ë¾Ù½«´ó´ó½ÚÊ¡CPU×ÊÔ´£©
+ 215   1      //      KeyTime=LONG_TICKS;//´Ë¾ä·ÀÖ¹KeyTimeÒç³ö(KeyTimeÓÉÉ¨¼ü³ÌĞòÀÛÔö)
+ 216   1      //      return; 
+C51 COMPILER V9.59.0.0   MYKEY                                                             04/20/2019 17:56:51 PAGE 5   
+
+ 217   1      //    }
+ 218   1        Trg=KeyStable & (KeyStable ^ Cont); //µ÷ÓÃÈıĞĞ¶Á¼ü·½·¨,ÆäÊµºËĞÄÖ»ÓĞ´ËĞĞ£¬Ê¹µÃTrgÔÚÄ³°´¼ü±»°´ÏÂºóÓĞÇÒÖ»ÓĞÒ
+             -»´Î¶ÁÈ¡µ½¶ÔÓ¦Î»Îª1;
+ 219   1        Cont=KeyStable;
+ 220   1        newkeytmp=Key_PrePro();//´Ó¼üÔ¤´¦Àí³ÌĞòÖĞ¶Á¼üÖµ
+ 221   1        if(newkeytmp)//Èç¹ûÓĞĞÂµÄ¼üÖµ
+ 222   1        {
+ 223   2          New_KeyBuff[pNewKey++]=newkeytmp;//´æÈë°´¼ü»º³åÇø(pNewKeyÓÀÔ¶Ö¸ÏòÏÂÒ»¿ÕÎ»ÖÃ)
+ 224   2          if(pNewKey==KEYBUFFSIZE)pNewKey=0;//°´¼ü»º³åÇøÑ­»·Ê¹ÓÃ
+ 225   2        }
+ 226   1      }
+ 227          
+ 228          
+ 229          
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  23 ERROR(S)

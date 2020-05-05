@@ -1,0 +1,114 @@
+C51 COMPILER V9.53.0.0   ADC                                                               04/24/2020 14:54:25 PAGE 1   
+
+
+C51 COMPILER V9.53.0.0, COMPILATION OF MODULE ADC
+OBJECT MODULE PLACED IN .\Objects\ADC.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE User\Drive\ADC.c OMF2 ROM(COMPACT) OPTIMIZE(8,SPEED) BROWSE INCDIR(.\Use
+                    -r;.\User\Drive) DEBUG PRINT(.\Listings\ADC.lst) OBJECT(.\Objects\ADC.obj)
+
+line level    source
+
+   1          #include <intrins.h> 
+   2          #include "ADC.h"
+   3          #include  <stdlib.h>
+   4          
+   5           
+   6          /*************************************/
+   7          void ADC_CfgSet(u8 Vref,u8 Clk, u8 Mask_irq)
+   8          {       //all value ref adc.h,   #define ADCFG_*** 
+   9   1      
+  10   1               xADCFG |= (Vref|Clk|Mask_irq|ADCFG_LSB);       
+  11   1      }
+  12          void AD_Init(u8 ADC_channel)
+  13          {
+  14   1              xADCMOD = 0;    //Soft control start, disable adc in stop; ADC clk from MCLK
+  15   1              LVRCON=0x85;         //·ÀËÀ»ú
+  16   1              ADC_CfgSet(ADCFG_VREF_VRH_2V,CLK_SYSCLKDIV4,ADCFG_IRQ_DIS);
+  17   1              xADGC |= 0x80;                  //enable adc clcok 
+  18   1              ADCSelectChannel(ADC_channel);  //p1.1
+  19   1              
+  20   1              ADEN =1;
+  21   1              _nop_();
+  22   1              _nop_();
+  23   1              _nop_();
+  24   1              ADGO = 1;
+  25   1      
+  26   1      }
+  27          
+  28          void AD_DeInit(void)
+  29          {
+  30   1              ADEN = 0;
+  31   1              ADCON &= 0x38;
+  32   1      }
+  33          
+  34          u16 Adc_Read()
+  35          {
+  36   1              u16 adc_data;
+  37   1              ADEN =1;
+  38   1              _nop_();
+  39   1              _nop_();
+  40   1              _nop_();
+  41   1      
+  42   1              ADGO = 1;
+  43   1              
+  44   1              while( ADGO == 1);
+  45   1              
+  46   1              ADGO = 1;
+  47   1      
+  48   1              adc_data = ADRESH;
+  49   1              adc_data = (adc_data<<8) | ADRESL;
+  50   1              
+  51   1              return adc_data;
+  52   1      }
+  53          
+  54          
+C51 COMPILER V9.53.0.0   ADC                                                               04/24/2020 14:54:25 PAGE 2   
+
+  55          
+  56          
+  57          void ADCSelectChannel(u8 channel)
+  58          {
+  59   1              u8 data temp;
+  60   1              
+  61   1              switch(channel)
+  62   1              {
+  63   2                      case CH0_VSS: break;
+  64   2                      case CH1_P10:  xP1AEN|=0x01; break;      //p1.0
+  65   2                      case CH2_P11:  xP1AEN|=0x02; break;//p1.1
+  66   2                      case CH3_P12:  xP1AEN|=0x04; break;//p1.2
+  67   2                      case CH4_P13:  xP1AEN|=0x08; break;//p1.3
+  68   2                      case CH5_P24:  xP1AEN|=0x10; break;//p2.4
+  69   2                      case CH6_P25:  xP1AEN|=0x20; break;//p2.5
+  70   2                      case CH7_P30:  xP3AEN|=0x01; break;//p3.0
+  71   2                      case CH8_P31:  xP3AEN|=0x02; break;//p3.1               //LQFP-48Î´·â³ö 
+  72   2                      case CH9_P32:  xP3AEN|=0x04; break;//p3.2
+  73   2                      case CH10_P33: xP3AEN|=0x08; break;//p3.3
+  74   2                      case CH11_P50: xP3AEN|=0x10; break;//p5.0
+  75   2                      case CH13_P94VBG: LVRCON|=0x40; break;//p9.4 set VROE(P9.4 AEN); 1:set 1.25 VBG out to P94 
+  76   2                      case CH14_CVREF:break;
+  77   2                      case CH15_VSS: break;
+  78   2                      default: break;
+  79   2              }
+  80   1              temp = ADCON&0x0f;
+  81   1              ADCON = temp |channel;
+  82   1      }
+  83          
+  84          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    214    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
