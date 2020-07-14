@@ -38,6 +38,7 @@ typedef struct{
 	u8 line_flag;
 }UHFDATA;
 extern UHFDATA xdata u_dat;
+extern u32 code FREQ[2][100];
 
 u32 SetFreq(void);
 void KT0646mInit(void);

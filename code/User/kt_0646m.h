@@ -114,7 +114,7 @@
 #define	MIC_SENS_GAIN_13	13  //40db
 #define	MIC_SENS_GAIN_14	14  //43db
 #define	MIC_SENS_GAIN_15	15  //46db  
-#define	KT_FS_VOL   		MIC_SENS_GAIN_5//16db
+#define	KT_FS_VOL   		MIC_SENS_GAIN_8//16db
    
 #define COMPANDOR_ENABLE    0
 #define COMPANDOR_DISABLE   1

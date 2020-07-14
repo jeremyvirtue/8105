@@ -1,4 +1,4 @@
-C51 COMPILER V9.53.0.0   SYSTEM                                                            04/28/2020 09:44:56 PAGE 1   
+C51 COMPILER V9.53.0.0   SYSTEM                                                            06/09/2020 11:57:22 PAGE 1   
 
 
 C51 COMPILER V9.53.0.0, COMPILATION OF MODULE SYSTEM
@@ -62,7 +62,7 @@ line level    source
   51   3                                      Sdata.check = 0;
   52   3                                      SysState(CHECK_DIS);
   53   3                              }
-C51 COMPILER V9.53.0.0   SYSTEM                                                            04/28/2020 09:44:56 PAGE 2   
+C51 COMPILER V9.53.0.0   SYSTEM                                                            06/09/2020 11:57:22 PAGE 2   
 
   54   2                              else if(Sdata.state == CHECK_DIS)
   55   2                              {
@@ -126,7 +126,7 @@ line level    source
  113   2                              break;
  114   2                      case K2_C0_5S:  
  115   2                              keys.key_num = 0; 
-C51 COMPILER V9.53.0.0   SYSTEM                                                            04/28/2020 09:44:56 PAGE 3   
+C51 COMPILER V9.53.0.0   SYSTEM                                                            06/09/2020 11:57:22 PAGE 3   
 
  116   2                              if(Sdata.state == READY)//开机长按进入调台
  117   2                              {
@@ -190,7 +190,7 @@ line level    source
  175   2                              {
  176   3                                      tw_time = 4;
  177   3                                      SysState(UHF_SET); 
-C51 COMPILER V9.53.0.0   SYSTEM                                                            04/28/2020 09:44:56 PAGE 4   
+C51 COMPILER V9.53.0.0   SYSTEM                                                            06/09/2020 11:57:22 PAGE 4   
 
  178   3                              }
  179   2                              if(Sdata.state == UHF_CH)//确认进入快速调节
@@ -254,7 +254,7 @@ line level    source
  237          {
  238   1              Sdata.state = state;
  239   1              switch(state)
-C51 COMPILER V9.53.0.0   SYSTEM                                                            04/28/2020 09:44:56 PAGE 5   
+C51 COMPILER V9.53.0.0   SYSTEM                                                            06/09/2020 11:57:22 PAGE 5   
 
  240   1              {
  241   2                      case S_INIT:  
@@ -318,7 +318,7 @@ line level    source
  299   2                      break;
  300   2                      case SET_AUTOMUTE:
  301   2                      {  
-C51 COMPILER V9.53.0.0   SYSTEM                                                            04/28/2020 09:44:56 PAGE 6   
+C51 COMPILER V9.53.0.0   SYSTEM                                                            06/09/2020 11:57:22 PAGE 6   
 
  302   3                              Sdata.stop_time = 5;    
  303   3                              KT_WirelessMicTx_MuteSel(AUDIO_UNMUTE);
@@ -374,22 +374,22 @@ line level    source
  353   3                                      LcdClose();
  354   3                                      if(LINE_EN)//如果此时插入充电线，那就进入充电状态，否则，INIT
  355   3                                      {
- 356   4      //                                      POWER= 0;
- 357   4      //                                      GPIO_SET(P2MDL,GPIO_OP,2);//chip_en
- 358   4                                              SysState(BAT_CHARGE);
- 359   4                                              CHIP_EN_OUT;
- 360   4                                              CHIP_EN = Disable; 
- 361   4                                      }
- 362   3                                      else
- 363   3                                              SysState(S_INIT); 
-C51 COMPILER V9.53.0.0   SYSTEM                                                            04/28/2020 09:44:56 PAGE 7   
+ 356   4       
+ 357   4                                              SysState(BAT_CHARGE);
+ 358   4                                              CHIP_EN_OUT;
+ 359   4                                              CHIP_EN = Disable; 
+ 360   4                                      }
+ 361   3                                      else
+ 362   3                                              SysState(S_INIT); 
+ 363   3                              break;
+C51 COMPILER V9.53.0.0   SYSTEM                                                            06/09/2020 11:57:22 PAGE 7   
 
- 364   3                              break;
- 365   3                              case UHF_SET:
- 366   3                                      FreqTune(SetFreq());
- 367   3                                      SysState(RAIL_DIS);
- 368   3                              break;
- 369   3                              case UHF_CH:  
+ 364   3                              case UHF_SET:
+ 365   3                                      FreqTune(SetFreq());
+ 366   3                                      SysState(RAIL_DIS);
+ 367   3                              break;
+ 368   3                              case UHF_CH:  
+ 369   3                                      LedLightApi();
  370   3                                      BPSKMode(order4); 
  371   3                                      SysState(RAIL_DIS);     
  372   3                              break;
@@ -400,72 +400,72 @@ line level    source
  377   3                                      SysState(READY); 
  378   3                              break;
  379   3                              case SET_ID:   
- 380   3                                      BPSKMode(order4); 
- 381   3                                      SysState(RAIL_DIS);
- 382   3                              break;
- 383   3                              case RAIL_DIS:
- 384   3      
- 385   3                              break;
- 386   3                              case SET_VOL: 
- 387   3                                      FlashWrite(FLASH_ID_VOLUME,u_dat.vol);
- 388   3                                      ShowIco(LCD_ICON_DB,RESET);
- 389   3                                      SysState(READY);
- 390   3                              break;
- 391   3                              case SET_AUTOMUTE:
- 392   3                                      SysState(RAIL_DIS);
- 393   3                              break;
- 394   3                              case SET_ID_PRESS: 
- 395   3                                       
- 396   3                              break;
- 397   3                              case SET_EQ:
- 398   3                                      FlashWrite(FLASH_ID_EQ,u_dat.eq);
- 399   3                                      SysState(READY);
- 400   3                              break;
- 401   3                              case BAT_CHARGE:
- 402   3                                       
- 403   3                              break;
- 404   3                              case CHECK_DIS:
- 405   3                                      ShowIco(LCD_ICON_DB,RESET);
- 406   3                                      SysState(READY);
- 407   3                              break;
- 408   3                      }
- 409   2              } 
- 410   1      }
- 411          
- 412           
+ 380   3                                      LedLightApi();
+ 381   3                                      BPSKMode(order4); 
+ 382   3                                      SysState(RAIL_DIS);
+ 383   3                              break;
+ 384   3                              case RAIL_DIS:
+ 385   3      
+ 386   3                              break;
+ 387   3                              case SET_VOL: 
+ 388   3                                      FlashWrite(FLASH_ID_VOLUME,u_dat.vol);
+ 389   3                                      ShowIco(LCD_ICON_DB,RESET);
+ 390   3                                      SysState(READY);
+ 391   3                              break;
+ 392   3                              case SET_AUTOMUTE:
+ 393   3                                      SysState(RAIL_DIS);
+ 394   3                              break;
+ 395   3                              case SET_ID_PRESS: 
+ 396   3                                       
+ 397   3                              break;
+ 398   3                              case SET_EQ:
+ 399   3                                      FlashWrite(FLASH_ID_EQ,u_dat.eq);
+ 400   3                                      SysState(READY);
+ 401   3                              break;
+ 402   3                              case BAT_CHARGE:
+ 403   3                                       
+ 404   3                              break;
+ 405   3                              case CHECK_DIS:
+ 406   3                                      ShowIco(LCD_ICON_DB,RESET);
+ 407   3                                      SysState(READY);
+ 408   3                              break;
+ 409   3                      }
+ 410   2              } 
+ 411   1      }
+ 412          
  413           
- 414           /*****************************************
- 415                    check enter stop mode 
- 416          ******************************************/
- 417          void EnterStopMode(void)
- 418          { 
- 419   1                      Delay_ms(100);
- 420   1       
- 421   1                      IO_DeInit();  
+ 414           
+ 415           /*****************************************
+ 416                    check enter stop mode 
+ 417          ******************************************/
+ 418          void EnterStopMode(void)
+ 419          { 
+ 420   1                      IO_DeInit();  //不动5_0口
+ 421   1                      Delay_ms(100);
  422   1       
  423   1       
- 424   1              /*******************  key       **********************/
- 425   1                      GPIO_SET(xP5MDL,GPIO_UI,0);// 
-C51 COMPILER V9.53.0.0   SYSTEM                                                            04/28/2020 09:44:56 PAGE 8   
+ 424   1       
+ 425   1              /*******************  key       **********************/
+C51 COMPILER V9.53.0.0   SYSTEM                                                            06/09/2020 11:57:22 PAGE 8   
 
- 426   1                      GPIO_SET(P1MDL,GPIO_UI,1);// 
- 427   1                      GPIO_SET(P1MDL,GPIO_UI,2);// 
- 428   1                      GPIO_SET(P1MDL,GPIO_UI,3);// 
- 429   1              /*****************************************/
- 430   1                      
- 431   1              /*******************  adc_bat   **********************/ 
- 432   1                      AD_DeInit();
- 433   1                      GPIO_SET(P3MDL,GPIO_OI,0);
- 434   1              /*****************************************/
- 435   1              
- 436   1               
- 437   1              
- 438   1              /*************          LED     ***************/
- 439   1                      LcdClose();
- 440   1              /*******************************/
- 441   1                      
- 442   1      /*************  0646    ***************/
- 443   1      //      POWER = 1; 
+ 426   1      //              GPIO_SET(xP5MDL,GPIO_UI,0);// 
+ 427   1                      GPIO_SET(P1MDL,GPIO_UI,1);// 
+ 428   1                      GPIO_SET(P1MDL,GPIO_UI,2);// 
+ 429   1                      GPIO_SET(P1MDL,GPIO_UI,3);// 
+ 430   1              /*****************************************/
+ 431   1                      
+ 432   1              /*******************  adc_bat   **********************/ 
+ 433   1                      AD_DeInit();
+ 434   1                      GPIO_SET(P3MDL,GPIO_OI,0);
+ 435   1              /*****************************************/
+ 436   1              
+ 437   1               
+ 438   1              
+ 439   1              /*************          LED     ***************/
+ 440   1                      LcdClose();
+ 441   1              /*******************************/
+ 442   1                      
+ 443   1      /*************  0646    ***************/
  444   1              GPIO_SET(P2MDL,GPIO_PP,2);//chip_en
  445   1              CHIP_EN = Enable;  
  446   1              CHIP_EN = Disable;  
@@ -473,50 +473,45 @@ line level    source
  448   1              
  449   1      //      /*************  other   ***************/
  450   1       
- 451   1              GPIO_SET(P2MDL,GPIO_PP,1);
+ 451   1              GPIO_SET(P2MDL,GPIO_PP,1);//POWER
  452   1              POWER = 0; 
  453   1                      /*power
  454   1                        line_en
  455   1                      */
- 456   1              GPIO_SET(P0MDL,GPIO_OI,1);//mcu15
- 457   1      //      GPIO_SET(P1MDL,GPIO_OI,1);
- 458   1              /*******************************/       
- 459   1       
- 460   1      //      if(!LINE_EN)
- 461   1                      stop_mode();
- 462   1      //      else
- 463   1      //              SysState(BAT_CHARGE);
- 464   1       
- 465   1      }
- 466          
- 467          void StopDelay(void)
- 468          {
- 469   1              
- 470   1              if(Sdata.stop_time > 0 && Sdata.state == S_INIT) 
- 471   1              {
- 472   2      //              ShowNumber(Sdata.stop_time);
- 473   2                      Sdata.stop_time--;
- 474   2                      
- 475   2                      if(Sdata.stop_time == 0)
- 476   2                      {
- 477   3                              EnterStopMode();
- 478   3                      }
- 479   2              }
- 480   1       
- 481   1      }
- 482          
+ 456   1              GPIO_SET(P0MDL,GPIO_OI,1);//充电判断引脚 为中断1做好准备
+ 457   1              /*******************************/       
+ 458   1        
+ 459   1                      stop_mode(); 
+ 460   1      }
+ 461          
+ 462          void StopDelay(void)
+ 463          {
+ 464   1              
+ 465   1              if(Sdata.stop_time > 0 && Sdata.state == S_INIT) 
+ 466   1              {
+ 467   2      //              ShowNumber(Sdata.stop_time);
+ 468   2                      Sdata.stop_time--;
+ 469   2                      
+ 470   2                      if(Sdata.stop_time == 0)
+ 471   2                      {
+ 472   3                              EnterStopMode();
+ 473   3                      }
+ 474   2              }
+ 475   1       
+ 476   1      }
+ 477          
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =   1156    ----
+   CODE SIZE        =   1150    ----
    CONSTANT SIZE    =   ----    ----
-C51 COMPILER V9.53.0.0   SYSTEM                                                            04/28/2020 09:44:56 PAGE 9   
-
    XDATA SIZE       =      9    ----
    PDATA SIZE       =   ----    ----
    DATA SIZE        =   ----    ----
    IDATA SIZE       =   ----    ----
    BIT SIZE         =   ----    ----
+C51 COMPILER V9.53.0.0   SYSTEM                                                            06/09/2020 11:57:22 PAGE 9   
+
    EDATA SIZE       =   ----    ----
    HDATA SIZE       =   ----    ----
    XDATA CONST SIZE =   ----    ----

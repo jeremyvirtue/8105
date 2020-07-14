@@ -66,9 +66,8 @@ void KeyScan(void)
 	}
 	else
 	{
- 		LedLight();
-		keys.light = 10;
-			keys.mute_flag = 1;
+		LedLightApi();
+		keys.mute_flag = 1;
 	}
 	
 	Twins(); 
@@ -282,6 +281,12 @@ void LedBlack(void)
  xGPIODS0 &= 0xFE; 
  xGPIODS3 &= 0x0F;
  xGPIODS4 &= 0xF9;
+}
+
+void LedLightApi()
+{
+ 		LedLight();
+		keys.light = 20;
 }
 
 

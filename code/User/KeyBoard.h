@@ -92,7 +92,7 @@ void KeyMute(void);
 void LedLampDelay();
  void LedLight(void);
 void LedBlack(void);
-
+void LedLightApi();
 
 #endif
 

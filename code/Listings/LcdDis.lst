@@ -1,4 +1,4 @@
-C51 COMPILER V9.53.0.0   LCDDIS                                                            04/28/2020 09:40:50 PAGE 1   
+C51 COMPILER V9.53.0.0   LCDDIS                                                            06/09/2020 11:57:23 PAGE 1   
 
 
 C51 COMPILER V9.53.0.0, COMPILATION OF MODULE LCDDIS
@@ -62,7 +62,7 @@ line level    source
   52   1              ShowChar(LCD_DIGITAL_1,CHAR_XX);
   53   1              ShowChar(LCD_DIGITAL_2,CHAR_0);
   54   1              ShowChar(LCD_DIGITAL_3,CHAR_k);
-C51 COMPILER V9.53.0.0   LCDDIS                                                            04/28/2020 09:40:50 PAGE 2   
+C51 COMPILER V9.53.0.0   LCDDIS                                                            06/09/2020 11:57:23 PAGE 2   
 
   55   1              ShowChar(LCD_DIGITAL_4,CHAR_XX);
   56   1      }
@@ -126,7 +126,7 @@ line level    source
  114   2              }
  115   1      }
  116          
-C51 COMPILER V9.53.0.0   LCDDIS                                                            04/28/2020 09:40:50 PAGE 3   
+C51 COMPILER V9.53.0.0   LCDDIS                                                            06/09/2020 11:57:23 PAGE 3   
 
  117          void CheckDis(void)
  118          {
@@ -190,7 +190,7 @@ line level    source
  176   3                                       
  177   3                              break;
  178   3                              case 18:
-C51 COMPILER V9.53.0.0   LCDDIS                                                            04/28/2020 09:40:50 PAGE 4   
+C51 COMPILER V9.53.0.0   LCDDIS                                                            06/09/2020 11:57:23 PAGE 4   
 
  179   3                                      num = 0;
  180   3                                      KT0646mInit(); 
@@ -251,187 +251,191 @@ line level    source
  235          void BatRead(void)
  236          {
  237   1              static u8 twbat;
- 238   1              u16 bat_v;
- 239   1              if(Sdata.state != SHUTDOWN && Sdata.state != START )
- 240   1              {
-C51 COMPILER V9.53.0.0   LCDDIS                                                            04/28/2020 09:40:50 PAGE 5   
+ 238   1              float bat_v;
+ 239   1              u16 ad;
+ 240   1      //      u16 bat_v;
+C51 COMPILER V9.53.0.0   LCDDIS                                                            06/09/2020 11:57:23 PAGE 5   
 
- 241   2                      if(!LINE_EN)
- 242   2                      {
- 243   3                              bat_v = Adc_Read();
- 244   3              //              ShowNumber(bat_v);
- 245   3              //              bat_v = (bat_v*11)/62; 
- 246   3                              if(bat_v > 3352) //4.0
- 247   3                              { 
- 248   4                                      ShowBattery(LCD_BATTERY_4);
- 249   4                              }
- 250   3                              else if(bat_v > 3220)//3.8
+ 241   1              if(Sdata.state != SHUTDOWN && Sdata.state != START )
+ 242   1              {
+ 243   2                      if(!LINE_EN)
+ 244   2                      {
+ 245   3                              ad = Adc_Read();
+ 246   3                              bat_v = ad/(8.19);
+ 247   3      //                       
+ 248   3                              bat_v = bat_v-20;
+ 249   3      //                      ShowNumber(bat_v); 
+ 250   3                              if(bat_v > 380) // 
  251   3                              { 
- 252   4                                      ShowBattery(LCD_BATTERY_3);
+ 252   4                                      ShowBattery(LCD_BATTERY_4);
  253   4                              }
- 254   3                              else if(bat_v > 3036)//3.6
+ 254   3                              else if(bat_v > 360)// 
  255   3                              { 
- 256   4                                      ShowBattery(LCD_BATTERY_2);
+ 256   4                                      ShowBattery(LCD_BATTERY_3);
  257   4                              }
- 258   3                              else if(bat_v > 2900)//3.5
+ 258   3                              else if(bat_v > 340)// 
  259   3                              { 
- 260   4                                      ShowBattery(LCD_BATTERY_1);
+ 260   4                                      ShowBattery(LCD_BATTERY_2);
  261   4                              }
- 262   3                              else if(bat_v > 2790)//3.3
- 263   3                              {
- 264   4                                      twbat = ~twbat;
- 265   4                                      if(twbat) { 
- 266   5                                              ShowBattery(LCD_BATTERY_1);     
- 267   5                                      }
- 268   4                                      else  
- 269   4                                              ShowBattery(LCD_BATTERY_0);
- 270   4                              }
- 271   3                              else if(bat_v>0)
- 272   3                              { 
- 273   4                                      ShowBattery(LCD_BATTERY_0);
- 274   4                                      SysState(SHUTDOWN);
- 275   4                              }
- 276   3                              else
- 277   3                              { 
- 278   4                                      KT0646mInit(); 
- 279   4                              } 
- 280   3                      }
- 281   2              
- 282   2                      else if(LINE_EN)
- 283   2                      {
- 284   3                                              bat_v = Adc_Read();
- 285   3              //              ShowNumber(bat_v);
- 286   3              //              bat_v = (bat_v*11)/62; 
- 287   3                              if(bat_v > 3352) //4.1
- 288   3                              { 
- 289   4                                      ShowBattery(LCD_BATTERY_4);
- 290   4                              }
- 291   3                              else if(bat_v > 3220)//3.8
+ 262   3      //                      else if(bat_v > 2900)//3.5
+ 263   3      //                      { 
+ 264   3      //                              ShowBattery(LCD_BATTERY_1);
+ 265   3      //                      }
+ 266   3                              else if(bat_v > 320)//3.3
+ 267   3                              {
+ 268   4                                      twbat = ~twbat;
+ 269   4                                      if(twbat) { 
+ 270   5                                              ShowBattery(LCD_BATTERY_1);     
+ 271   5                                      }
+ 272   4                                      else  
+ 273   4                                              ShowBattery(LCD_BATTERY_0);
+ 274   4                              }
+ 275   3                              else if(bat_v>0)
+ 276   3                              { 
+ 277   4                                      ShowBattery(LCD_BATTERY_0);
+ 278   4                                      SysState(SHUTDOWN);
+ 279   4                              }
+ 280   3                              else
+ 281   3                              { 
+ 282   4      //                              KT0646mInit(); 
+ 283   4                              } 
+ 284   3                      }
+ 285   2              
+ 286   2                      else if(LINE_EN)
+ 287   2                      {//+10
+ 288   3                              ad = Adc_Read();
+ 289   3                              bat_v = ad/(8.18); 
+ 290   3      //              ShowNumber(bat_v);
+ 291   3                              if(bat_v > 413) //4.1
  292   3                              { 
- 293   4                                      twbat = ~twbat;
- 294   4                                      if(twbat)
- 295   4                                              ShowBattery(LCD_BATTERY_3);
- 296   4                                      else
- 297   4                                              ShowBattery(LCD_BATTERY_4);
- 298   4                              }
- 299   3                              else if(bat_v > 3036)//3.6 2¸ñÉÁË¸
- 300   3                              { 
- 301   4                                      twbat = ~twbat;
- 302   4                                      if(twbat)
-C51 COMPILER V9.53.0.0   LCDDIS                                                            04/28/2020 09:40:50 PAGE 6   
+ 293   4                                      ShowBattery(LCD_BATTERY_4);
+ 294   4                              }
+ 295   3                              else if(bat_v > 390)//3.8
+ 296   3                              { 
+ 297   4                                      twbat = ~twbat;
+ 298   4                                      if(twbat)
+ 299   4                                              ShowBattery(LCD_BATTERY_3);
+ 300   4                                      else
+ 301   4                                              ShowBattery(LCD_BATTERY_4);
+ 302   4                              }
+C51 COMPILER V9.53.0.0   LCDDIS                                                            06/09/2020 11:57:23 PAGE 6   
 
- 303   4                                              ShowBattery(LCD_BATTERY_2);
- 304   4                                      else
- 305   4                                              ShowBattery(LCD_BATTERY_3);
- 306   4                              }
- 307   3                              else if(bat_v > 0)//3.5  1¸ñÉÁË¸
- 308   3                              { 
- 309   4                                      twbat = ~twbat;
- 310   4                                      if(twbat)
- 311   4                                              ShowBattery(LCD_BATTERY_1);
- 312   4                                      else
- 313   4                                              ShowBattery(LCD_BATTERY_2);
- 314   4                              }  
- 315   3                              else
- 316   3                              { 
- 317   4                                      KT0646mInit(); 
- 318   4                              } 
- 319   3                      }
- 320   2              }
- 321   1      }       
- 322          
- 323          u8 tw_time;
- 324          void TwinkleDis(void)
- 325          {
- 326   1              static u8 num = 0;  
- 327   1              if(tw_time)
- 328   1              {
- 329   2                      tw_time--; 
- 330   2              }
- 331   1              if(!tw_time)
+ 303   3                              else if(bat_v > 370)//3.6 2¸ñÉÁË¸
+ 304   3                              { 
+ 305   4                                      twbat = ~twbat;
+ 306   4                                      if(twbat)
+ 307   4                                              ShowBattery(LCD_BATTERY_2);
+ 308   4                                      else
+ 309   4                                              ShowBattery(LCD_BATTERY_3);
+ 310   4                              }
+ 311   3                              else if(bat_v > 0)//3.5  1¸ñÉÁË¸
+ 312   3                              { 
+ 313   4                                      twbat = ~twbat;
+ 314   4                                      if(twbat)
+ 315   4                                              ShowBattery(LCD_BATTERY_1);
+ 316   4                                      else
+ 317   4                                              ShowBattery(LCD_BATTERY_2);
+ 318   4                              }  
+ 319   3                              else
+ 320   3                              { 
+ 321   4      //                              KT0646mInit(); 
+ 322   4                              } 
+ 323   3                      }
+ 324   2              }
+ 325   1      }       
+ 326          
+ 327          u8 tw_time;
+ 328          void TwinkleDis(void)
+ 329          {
+ 330   1              static u8 num = 0;  
+ 331   1              if(tw_time)
  332   1              {
- 333   2                      num = ~num;
- 334   2                      if(Sdata.state == UHF_SET )
- 335   2                      {  
- 336   3                              if(num)
- 337   3                              {
- 338   4                                      SetDis();
- 339   4                              }
- 340   3                              else
- 341   3                              { 
- 342   4                                      ShowChar(LCD_DIGITAL_1,CHAR_XX);
- 343   4                                      ShowChar(LCD_DIGITAL_2,CHAR_XX);
- 344   4                                      ShowChar(LCD_DIGITAL_3,CHAR_XX);
- 345   4                                      ShowChar(LCD_DIGITAL_4,CHAR_XX);
- 346   4                              }
- 347   3                      }
- 348   2                      if(Sdata.state == UHF_CH )
- 349   2                      { 
- 350   3                              if(num)
- 351   3                              {
- 352   4                                      ChannelDis();
- 353   4                              }
- 354   3                              else
- 355   3                              { 
- 356   4                                      ShowChar(LCD_DIGITAL_1,CHAR_XX);
- 357   4                                      ShowChar(LCD_DIGITAL_2,CHAR_XX);
- 358   4                                      ShowChar(LCD_DIGITAL_3,CHAR_XX);
- 359   4                                      ShowChar(LCD_DIGITAL_4,CHAR_XX);
- 360   4                              }
- 361   3                      }
- 362   2                      if(Sdata.state == SET_ID )
- 363   2                      { 
- 364   3                              if(num)
-C51 COMPILER V9.53.0.0   LCDDIS                                                            04/28/2020 09:40:50 PAGE 7   
+ 333   2                      tw_time--; 
+ 334   2              }
+ 335   1              if(!tw_time)
+ 336   1              {
+ 337   2                      num = ~num;
+ 338   2                      if(Sdata.state == UHF_SET )
+ 339   2                      {  
+ 340   3                              if(num)
+ 341   3                              {
+ 342   4                                      SetDis();
+ 343   4                              }
+ 344   3                              else
+ 345   3                              { 
+ 346   4                                      ShowChar(LCD_DIGITAL_1,CHAR_XX);
+ 347   4                                      ShowChar(LCD_DIGITAL_2,CHAR_XX);
+ 348   4                                      ShowChar(LCD_DIGITAL_3,CHAR_XX);
+ 349   4                                      ShowChar(LCD_DIGITAL_4,CHAR_XX);
+ 350   4                              }
+ 351   3                      }
+ 352   2                      if(Sdata.state == UHF_CH )
+ 353   2                      { 
+ 354   3                              if(num)
+ 355   3                              {
+ 356   4                                      ChannelDis();
+ 357   4                              }
+ 358   3                              else
+ 359   3                              { 
+ 360   4                                      ShowChar(LCD_DIGITAL_1,CHAR_XX);
+ 361   4                                      ShowChar(LCD_DIGITAL_2,CHAR_XX);
+ 362   4                                      ShowChar(LCD_DIGITAL_3,CHAR_XX);
+ 363   4                                      ShowChar(LCD_DIGITAL_4,CHAR_XX);
+ 364   4                              }
+C51 COMPILER V9.53.0.0   LCDDIS                                                            06/09/2020 11:57:23 PAGE 7   
 
- 365   3                              {
- 366   4                                      IdDis();
- 367   4                              }
- 368   3                              else
- 369   3                              { 
- 370   4                                      ShowChar(LCD_DIGITAL_1,CHAR_XX);
- 371   4                                      ShowChar(LCD_DIGITAL_2,CHAR_XX);
- 372   4                                      ShowChar(LCD_DIGITAL_3,CHAR_XX);
- 373   4                                      ShowChar(LCD_DIGITAL_4,CHAR_XX);
- 374   4                              }
- 375   3                      }
- 376   2              }
- 377   1      }
- 378          
- 379          
- 380          void AutoMuteDis(void)
- 381          {
- 382   1              static u8 xdata a  =0;
- 383   1              if(u_dat.automute_time>10 && Sdata.state == READY &&u_dat.automute) 
- 384   1              { 
- 385   2                      a++;
- 386   2                      if(a == 1 )
- 387   2                      {
- 388   3                              ShowChar(LCD_DIGITAL_1,CHAR_XX);
- 389   3                              ShowChar(LCD_DIGITAL_2,CHAR_0);
- 390   3                              ShowChar(LCD_DIGITAL_3,CHAR_0);
- 391   3                              ShowChar(LCD_DIGITAL_4,CHAR_XX);
- 392   3                      }
- 393   2                      else if(a == 2)
- 394   2                      {
- 395   3                              ShowChar(LCD_DIGITAL_1,CHAR_XX);
- 396   3                              ShowChar(LCD_DIGITAL_2,CHAR_XX);                                        
- 397   3                              ShowChar(LCD_DIGITAL_3,CHAR_XX);
- 398   3                              ShowChar(LCD_DIGITAL_4,CHAR_XX);
- 399   3                              a = 0;
- 400   3                      }       
- 401   2              }
- 402   1      }
- 403          
- 404          
+ 365   3                      }
+ 366   2                      if(Sdata.state == SET_ID )
+ 367   2                      { 
+ 368   3                              if(num)
+ 369   3                              {
+ 370   4                                      IdDis();
+ 371   4                              }
+ 372   3                              else
+ 373   3                              { 
+ 374   4                                      ShowChar(LCD_DIGITAL_1,CHAR_XX);
+ 375   4                                      ShowChar(LCD_DIGITAL_2,CHAR_XX);
+ 376   4                                      ShowChar(LCD_DIGITAL_3,CHAR_XX);
+ 377   4                                      ShowChar(LCD_DIGITAL_4,CHAR_XX);
+ 378   4                              }
+ 379   3                      }
+ 380   2              }
+ 381   1      }
+ 382          
+ 383          
+ 384          void AutoMuteDis(void)
+ 385          {
+ 386   1              static u8 xdata a  =0;
+ 387   1              if(u_dat.automute_time>10 && Sdata.state == READY &&u_dat.automute) 
+ 388   1              { 
+ 389   2                      a++;
+ 390   2                      if(a == 1 )
+ 391   2                      {
+ 392   3                              ShowChar(LCD_DIGITAL_1,CHAR_XX);
+ 393   3                              ShowChar(LCD_DIGITAL_2,CHAR_0);
+ 394   3                              ShowChar(LCD_DIGITAL_3,CHAR_0);
+ 395   3                              ShowChar(LCD_DIGITAL_4,CHAR_XX);
+ 396   3                      }
+ 397   2                      else if(a == 2)
+ 398   2                      {
+ 399   3                              ShowChar(LCD_DIGITAL_1,CHAR_XX);
+ 400   3                              ShowChar(LCD_DIGITAL_2,CHAR_XX);                                        
+ 401   3                              ShowChar(LCD_DIGITAL_3,CHAR_XX);
+ 402   3                              ShowChar(LCD_DIGITAL_4,CHAR_XX);
+ 403   3                              a = 0;
+ 404   3                      }       
+ 405   2              }
+ 406   1      }
+ 407          
+ 408          
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =   1227    ----
+   CODE SIZE        =   1385    ----
    CONSTANT SIZE    =   ----    ----
    XDATA SIZE       =      3    ----
    PDATA SIZE       =   ----    ----
-   DATA SIZE        =      3       3
+   DATA SIZE        =      3       7
    IDATA SIZE       =   ----    ----
    BIT SIZE         =   ----    ----
    EDATA SIZE       =   ----    ----

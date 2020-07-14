@@ -259,10 +259,10 @@ void IO_DeInit(void)
 	P4     = 0x00;
 
 //------------------------------
-	xGPIODS5 = 0xFF;		
-	xP5MDH = 0xFF;	
-	xP5MDL = 0xFF;	
-	P5     = 0x00;
+//	xGPIODS5 = 0xFF;		
+//	xP5MDH = 0xFF;	
+//	xP5MDL = 0xFF;	
+//	P5     = 0x00;
 	
 //------------------------------
 	xGPIODS9 = 0xFF;

@@ -62,13 +62,13 @@ static void Task1(void)
 	AutoMute(); 
 	
 	u_dat.ramid++;
-	if(u_dat.ramid == 255)
+	if(u_dat.ramid == 254)
 		u_dat.ramid = 1;
 	
-	if(u_dat.line_flag)
+	if(u_dat.line_flag)//充电状态唤醒
 	{
 		u_dat.line_flag = 0; 
-		if(Sdata.state == S_INIT)
+		if(Sdata.state == S_INIT)//如果此时为INIT状态
 		{
 			SysState(BAT_CHARGE);
 			IO_Initailize();  
@@ -80,9 +80,17 @@ static void Task1(void)
 			CHIP_EN_OUT;
 			CHIP_EN = Disable; 
 		} 
+		else 
+		{
+			SysState(SHUTDOWN);//正常工作时插入充电，立马关机
+		}
 	}
-	
-	if(Sdata.state == BAT_CHARGE)
+/*
+	如何进入BAT_CHARGE模式
+	1、关机时为充电状态
+	2、正常待机的时候插入充电线
+	*/
+	if(Sdata.state == BAT_CHARGE)//关机充电时拔出充电器 进入INIT状态
 	{
 		if(!LINE_EN)
 		{

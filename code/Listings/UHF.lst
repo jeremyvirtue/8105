@@ -1,4 +1,4 @@
-C51 COMPILER V9.53.0.0   UHF                                                               04/28/2020 09:38:51 PAGE 1   
+C51 COMPILER V9.53.0.0   UHF                                                               06/12/2020 15:05:40 PAGE 1   
 
 
 C51 COMPILER V9.53.0.0, COMPILATION OF MODULE UHF
@@ -62,7 +62,7 @@ line level    source
   52          
   53          void VolLess(void)
   54          {       
-C51 COMPILER V9.53.0.0   UHF                                                               04/28/2020 09:38:51 PAGE 2   
+C51 COMPILER V9.53.0.0   UHF                                                               06/12/2020 15:05:40 PAGE 2   
 
   55   1              if(u_dat.vol  == VOLMIN)
   56   1              {
@@ -106,193 +106,412 @@ line level    source
   94          u32 SetFreq(void)
   95          {
   96   1              u32 freq;
-  97   1              freq = ((u32)u_dat.channel * FREQ_INC) + FREQA_INIT;
-  98   1              return freq; 
-  99   1      }
- 100          
- 101          void FreqTune(u32 freq)
- 102          { 
- 103   1              KT_WirelessMicTx_Pilot(PILOT_DISABLE);  //关闭导频      
- 104   1              Delay_ms(100);
- 105   1              KT_WirelessMicTx_Tune(freq);
- 106   1              KT_WirelessMicTx_Pilot(PILOT_ENABLE);   //开启导频
- 107   1              AuxDataEnSw(Disable);                                   //关Aux数据发送使能
- 108   1              AuxDataEnSw(Enable);                                    //开Aux数据发送使能
- 109   1       
- 110   1      }
- 111          
- 112          void SetPubFreq()
- 113          {
- 114   1              FreqTune(FREQA_PUB);
- 115   1              if(u_dat.ab)
- 116   1              {
-C51 COMPILER V9.53.0.0   UHF                                                               04/28/2020 09:38:51 PAGE 3   
+  97   1      //      freq = ((u32)u_dat.channel * FREQ_INC) + FREQA_INIT;
+  98   1              freq = FREQ[u_dat.ab][u_dat.channel  -1];
+  99   1              return freq; 
+ 100   1      }
+ 101          
+ 102          void FreqTune(u32 freq)
+ 103          { 
+ 104   1              KT_WirelessMicTx_Pilot(PILOT_DISABLE);  //关闭导频      
+ 105   1              Delay_ms(100);
+ 106   1              KT_WirelessMicTx_Tune(freq);
+ 107   1              KT_WirelessMicTx_Pilot(PILOT_ENABLE);   //开启导频
+ 108   1              AuxDataEnSw(Disable);                                   //关Aux数据发送使能
+ 109   1              AuxDataEnSw(Enable);                                    //开Aux数据发送使能
+ 110   1       
+ 111   1      }
+ 112          
+ 113          void SetPubFreq()
+ 114          {
+ 115   1      //      FreqTune(FREQA_PUB);
+ 116   1              if(u_dat.ab)
+C51 COMPILER V9.53.0.0   UHF                                                               06/12/2020 15:05:40 PAGE 3   
 
- 117   2                      FreqTune(FREQB_PUB); 
- 118   2              }
- 119   1              else
- 120   1              {
- 121   2                      FreqTune(FREQA_PUB); 
- 122   2              }
- 123   1      }
- 124          
+ 117   1              {
+ 118   2                      FreqTune(FREQB_PUB); 
+ 119   2              }
+ 120   1              else
+ 121   1              {
+ 122   2                      FreqTune(FREQA_PUB); 
+ 123   2              }
+ 124   1      }
  125          
- 126           void KT0646mInit(void)
- 127          {       
- 128   1              uint32_t count;
- 129   1              UhfDataInit();
- 130   1              CHIP_EN_OUT;
- 131   1              CHIP_EN = Enable; 
- 132   1              count = 80000;
- 133   1              while(KT_Bus_Read46(0x01) != 0x4B54)            //Read Manufactory ID 
- 134   1              {
- 135   2                      count--;
- 136   2                      if(!count)
- 137   2                      { 
- 138   3                              ShowNumber(8888);
- 139   3                              break;
- 140   3                      }
- 141   2              } 
- 142   1              KT_WirelessMicTx_Init(SetFreq()); 
- 143   1              KT_WirelessMicTx_Mic_Sens(u_dat.vol); 
- 144   1              KT_WirelessMicTx_MuteSel(AUDIO_UNMUTE);         //开启声音
- 145   1              BPSKMode(order1);        
- 146   1      }
- 147          
- 148          void ReadData(void)
- 149          {
- 150   1              if(FlashCheck())
- 151   1              {
- 152   2                      u_dat.channel = FlashRead(FLASH_ID_CHANNEL);
- 153   2                      u_dat.vol = FlashRead(FLASH_ID_VOLUME);
- 154   2                      u_dat.id = FlashRead(FLASH_ID_SYSTEMID);
- 155   2                      u_dat.automute =  FlashRead(FLASH_AUTOMUTE);
- 156   2                      u_dat.eq =  FlashRead(FLASH_ID_EQ);
- 157   2              }
- 158   1              else
- 159   1              {
- 160   2                      u_dat.channel = 1;
- 161   2                      u_dat.vol = KT_FS_VOL;
- 162   2                      u_dat.id = 0;
- 163   2                      u_dat.automute = 1;
- 164   2                      u_dat.eq = 0;
- 165   2                      FlashWrite(FLASH_ID_MASK,FLASH_MASK);
- 166   2                      FlashWrite(FLASH_ID_MASK1,FLASH_MASK);
- 167   2                      SaveData();
- 168   2              }
- 169   1      }
- 170          
- 171           
- 172          
- 173          void SaveData(void)
- 174          {
- 175   1              FlashWrite(FLASH_ID_CHANNEL,u_dat.channel);
- 176   1              FlashWrite(FLASH_ID_VOLUME,u_dat.vol);
- 177   1              FlashWrite(FLASH_ID_SYSTEMID,u_dat.id);
- 178   1              FlashWrite(FLASH_AUTOMUTE,u_dat.automute);
-C51 COMPILER V9.53.0.0   UHF                                                               04/28/2020 09:38:51 PAGE 4   
+ 126          
+ 127           void KT0646mInit(void)
+ 128          {       
+ 129   1              uint32_t count;
+ 130   1              UhfDataInit();
+ 131   1              CHIP_EN_OUT;
+ 132   1              CHIP_EN = Enable; 
+ 133   1              count = 80000;
+ 134   1              while(KT_Bus_Read46(0x01) != 0x4B54)            //Read Manufactory ID 
+ 135   1              {
+ 136   2                      count--;
+ 137   2                      if(!count)
+ 138   2                      { 
+ 139   3                              ShowNumber(8888);
+ 140   3                              break;
+ 141   3                      }
+ 142   2              } 
+ 143   1              KT_WirelessMicTx_Init(SetFreq()); 
+ 144   1              AuxDataEnSw(Disable);                                   //关Aux数据发送使能
+ 145   1              AuxDataEnSw(Enable);                                    //开Aux数据发送使能
+ 146   1              KT_WirelessMicTx_Mic_Sens(KT_FS_VOL); 
+ 147   1              KT_WirelessMicTx_MuteSel(AUDIO_UNMUTE);         //开启声音
+ 148   1              BPSKMode(order1);        
+ 149   1      }
+ 150          
+ 151          void ReadData(void)
+ 152          {
+ 153   1              if(FlashCheck())
+ 154   1              {
+ 155   2                      u_dat.channel = FlashRead(FLASH_ID_CHANNEL);
+ 156   2                      u_dat.vol = FlashRead(FLASH_ID_VOLUME);
+ 157   2                      u_dat.id = FlashRead(FLASH_ID_SYSTEMID);
+ 158   2                      u_dat.automute =  FlashRead(FLASH_AUTOMUTE);
+ 159   2                      u_dat.eq =  FlashRead(FLASH_ID_EQ);
+ 160   2              }
+ 161   1              else
+ 162   1              {
+ 163   2                      u_dat.channel = 1;
+ 164   2                      u_dat.vol = KT_FS_VOL;
+ 165   2                      u_dat.id = 0;
+ 166   2                      u_dat.automute = 1;
+ 167   2                      u_dat.eq = 0;
+ 168   2                      FlashWrite(FLASH_ID_MASK,FLASH_MASK);
+ 169   2                      FlashWrite(FLASH_ID_MASK1,FLASH_MASK);
+ 170   2                      SaveData();
+ 171   2              }
+ 172   1      }
+ 173          
+ 174           
+ 175          
+ 176          void SaveData(void)
+ 177          {
+ 178   1              FlashWrite(FLASH_ID_CHANNEL,u_dat.channel);
+C51 COMPILER V9.53.0.0   UHF                                                               06/12/2020 15:05:40 PAGE 4   
 
- 179   1              FlashWrite(FLASH_ID_EQ,u_dat.eq);
- 180   1      }
- 181          
- 182          
- 183          u16  xdata BPSKbuf[4]={0,0,0,0};
+ 179   1              FlashWrite(FLASH_ID_VOLUME,u_dat.vol);
+ 180   1              FlashWrite(FLASH_ID_SYSTEMID,u_dat.id);
+ 181   1              FlashWrite(FLASH_AUTOMUTE,u_dat.automute);
+ 182   1              FlashWrite(FLASH_ID_EQ,u_dat.eq);
+ 183   1      }
  184          
- 185           
- 186          
- 187          void CleanBPSK()
- 188          {
- 189   1              BPSKbuf[0] = 0x0000;
- 190   1              BPSKbuf[1] = 0x0000;
- 191   1              BPSKbuf[2] = 0x0000;
- 192   1              BPSKbuf[3] = 0x0000;    
- 193   1      }
- 194          void BPSKMode(BPSKOrder order)
- 195          {
- 196   1              CleanBPSK();
- 197   1              BPSKbuf[0] |= order<<12;
- 198   1              if(u_dat.ab)
- 199   1                      BPSKbuf[0] |= 3<<8;//品牌号
- 200   1              else     
- 201   1                      BPSKbuf[0] |= 2<<8;//品牌号
- 202   1              BPSKbuf[0] |= u_dat.vol;//音量值 0-31
- 203   1              BPSKbuf[1] |= ((SetFreq()/100)>>8)<<8;
- 204   1              BPSKbuf[1] |= 0xff - ((SetFreq()/100)>>8);
- 205   1              BPSKbuf[2] |= (SetFreq()/100)<<8;
- 206   1              BPSKbuf[2] |= 0xff - ((SetFreq()/100)&0x00ff);
- 207   1              BPSKbuf[3] |= ((u16)u_dat.id)<<8;
- 208   1              BPSKbuf[3] |= 0xff - u_dat.id;
- 209   1              KTWriteBPSK(BPSKbuf);
- 210   1      }
- 211          
- 212          void AutoMute()
- 213          {       //1开0关
- 214   1              if(u_dat.automute)
- 215   1              {
- 216   2                      if(KT_WirelessMicTxCheckVolume() && Sdata.state == READY)
- 217   2                      {
- 218   3                              if(u_dat.automute_time > 300)//开导频
- 219   3                              {
- 220   4                                      KT_WirelessMicTx_MuteSel(AUDIO_UNMUTE);
- 221   4                                      KT_WirelessMicTx_PASW(PA_ON); 
- 222   4                                      ChannelDis();
- 223   4                              }
- 224   3                              else if(u_dat.automute_time > 10)//开声音
- 225   3                              {
- 226   4                                      KT_WirelessMicTx_MuteSel(AUDIO_UNMUTE);
- 227   4                                      ChannelDis();
- 228   4                              }
- 229   3                              u_dat.automute_time = 0;
- 230   3                      }
- 231   2                      else if(Sdata.state != READY)
- 232   2                              u_dat.automute_time = 0;
- 233   2              } 
- 234   1      }
- 235          
- 236          void AutoMuteDelay(void)
- 237          { 
- 238   1              if(u_dat.automute)
- 239   1              {
- 240   2                      u_dat.automute_time++; 
-C51 COMPILER V9.53.0.0   UHF                                                               04/28/2020 09:38:51 PAGE 5   
+ 185          
+ 186          u16  xdata BPSKbuf[4]={0,0,0,0};
+ 187          
+ 188           
+ 189          
+ 190          void CleanBPSK()
+ 191          {
+ 192   1              BPSKbuf[0] = 0x0000;
+ 193   1              BPSKbuf[1] = 0x0000;
+ 194   1              BPSKbuf[2] = 0x0000;
+ 195   1              BPSKbuf[3] = 0x0000;    
+ 196   1      }
+ 197          void BPSKMode(BPSKOrder order)
+ 198          {
+ 199   1              CleanBPSK();
+ 200   1              BPSKbuf[0] |= order<<12;
+ 201   1              if(u_dat.ab)
+ 202   1                      BPSKbuf[0] |= 3<<8;//品牌号
+ 203   1              else     
+ 204   1                      BPSKbuf[0] |= 2<<8;//品牌号
+ 205   1              BPSKbuf[0] |= u_dat.vol;//音量值 0-31
+ 206   1              BPSKbuf[1] |= ((SetFreq()/100)>>8)<<8;
+ 207   1              BPSKbuf[1] |= 0xff - ((SetFreq()/100)>>8);
+ 208   1              BPSKbuf[2] |= (SetFreq()/100)<<8;
+ 209   1              BPSKbuf[2] |= 0xff - ((SetFreq()/100)&0x00ff);
+ 210   1              BPSKbuf[3] |= ((u16)u_dat.id)<<8;
+ 211   1              BPSKbuf[3] |= 0xff - u_dat.id;
+ 212   1              KTWriteBPSK(BPSKbuf);
+ 213   1      }
+ 214          
+ 215          void AutoMute()
+ 216          {       //1开0关
+ 217   1              if(u_dat.automute)
+ 218   1              {
+ 219   2                      if(KT_WirelessMicTxCheckVolume() && Sdata.state == READY)
+ 220   2                      {
+ 221   3                              if(u_dat.automute_time > 300)//开导频
+ 222   3                              {
+ 223   4                                      KT_WirelessMicTx_MuteSel(AUDIO_UNMUTE);
+ 224   4                                      KT_WirelessMicTx_PASW(PA_ON); 
+ 225   4                                      ChannelDis();
+ 226   4                              }
+ 227   3                              else if(u_dat.automute_time > 10)//开声音
+ 228   3                              {
+ 229   4                                      KT_WirelessMicTx_MuteSel(AUDIO_UNMUTE);
+ 230   4                                      ChannelDis();
+ 231   4                              }
+ 232   3                              u_dat.automute_time = 0;
+ 233   3                      }
+ 234   2                      else if(Sdata.state != READY)
+ 235   2                              u_dat.automute_time = 0;
+ 236   2              } 
+ 237   1      }
+ 238          
+ 239          void AutoMuteDelay(void)
+ 240          { 
+C51 COMPILER V9.53.0.0   UHF                                                               06/12/2020 15:05:40 PAGE 5   
 
- 241   2              }
- 242   1              
- 243   1       
- 244   1              if(u_dat.automute_time == 10 && Sdata.state == READY)
- 245   1              {
- 246   2                              KT_WirelessMicTx_MuteSel(AUDIO_MUTE);//静音
- 247   2              }
- 248   1              else if(u_dat.automute_time == 300 && Sdata.state == READY)
- 249   1              {
- 250   2                      KT_WirelessMicTx_PASW(PA_OFF);//关导频
- 251   2              }
- 252   1              else if(u_dat.automute_time == 900 && Sdata.state == READY)
- 253   1              {
- 254   2                      SysState(SHUTDOWN);//关机
- 255   2              } 
- 256   1              
- 257   1      }
- 258          
- 259          
- 260          void GetVat()
- 261          {
- 262   1              u16 val;
- 263   1              val = Adc_Read();
- 264   1              ShowNumber(val);
- 265   1      }
- 266          
+ 241   1              if(u_dat.automute)
+ 242   1              {
+ 243   2                      u_dat.automute_time++; 
+ 244   2              }
+ 245   1              
+ 246   1       
+ 247   1              if(u_dat.automute_time == 10 && Sdata.state == READY)
+ 248   1              {
+ 249   2                              KT_WirelessMicTx_MuteSel(AUDIO_MUTE);//静音
+ 250   2              }
+ 251   1              else if(u_dat.automute_time == 300 && Sdata.state == READY)
+ 252   1              {
+ 253   2                      KT_WirelessMicTx_PASW(PA_OFF);//关导频
+ 254   2              }
+ 255   1              else if(u_dat.automute_time == 900 && Sdata.state == READY)
+ 256   1              {
+ 257   2                      SysState(SHUTDOWN);//关机
+ 258   2              } 
+ 259   1              
+ 260   1      }
+ 261          
+ 262          
+ 263          void GetVat()
+ 264          {
+ 265   1              u16 val;
+ 266   1              val = Adc_Read();
+ 267   1              ShowNumber(val);
+ 268   1      }
+ 269          
+ 270          
+ 271          u32 code FREQ[2][100] = {
+ 272          730300,
+ 273          730600,
+ 274          730900,
+ 275          731200,
+ 276          731500,
+ 277          731800,
+ 278          732100,
+ 279          732400,
+ 280          732700,
+ 281          733000,
+ 282          733300,
+ 283          733600,
+ 284          733900,
+ 285          734200,
+ 286          734500,
+ 287          734800,
+ 288          735100,
+ 289          735400,
+ 290          735700,
+ 291          736000,
+ 292          736300,
+ 293          736600,
+ 294          736900,
+ 295          737200,
+ 296          737500,
+ 297          737800,
+ 298          738100,
+ 299          738400,
+ 300          738700,
+ 301          739000,
+ 302          739300,
+C51 COMPILER V9.53.0.0   UHF                                                               06/12/2020 15:05:40 PAGE 6   
+
+ 303          739600,
+ 304          739900,
+ 305          740200,
+ 306          740500,
+ 307          740800,
+ 308          741100,
+ 309          741400,
+ 310          741700,
+ 311          742000,
+ 312          742300,
+ 313          742600,
+ 314          742900,
+ 315          743200,
+ 316          743500,
+ 317          743800,
+ 318          744100,
+ 319          744400,
+ 320          744700,
+ 321          745000,
+ 322          745300,
+ 323          745600,
+ 324          745900,
+ 325          746200,
+ 326          746500,
+ 327          746800,
+ 328          747100,
+ 329          747400,
+ 330          747700,
+ 331          748000,
+ 332          748300,
+ 333          748600,
+ 334          748900,
+ 335          749200,
+ 336          749500,
+ 337          749800,
+ 338          750100,
+ 339          750400,
+ 340          750700,
+ 341          751000,
+ 342          751300,
+ 343          751600,
+ 344          751900,
+ 345          752200,
+ 346          752500,
+ 347          752800,
+ 348          753100,
+ 349          753400,
+ 350          753700,
+ 351          754000,
+ 352          754300,
+ 353          754600,
+ 354          754900,
+ 355          755200,
+ 356          755500,
+ 357          755800,
+ 358          756100,
+ 359          756400,
+ 360          756700,
+ 361          757000,
+ 362          757300,
+ 363          757600,
+ 364          757900,
+C51 COMPILER V9.53.0.0   UHF                                                               06/12/2020 15:05:40 PAGE 7   
+
+ 365          758200,
+ 366          758500,
+ 367          758800,
+ 368          759100,
+ 369          759400,
+ 370          759700,
+ 371          760000,
+ 372          
+ 373            
+ 374          790000,
+ 375          789700,
+ 376          789400,
+ 377          789100,
+ 378          788800,
+ 379          788500,
+ 380          788200,
+ 381          787900,
+ 382          787600,
+ 383          787300,
+ 384          787000,
+ 385          786700,
+ 386          786400,
+ 387          786100,
+ 388          785800,
+ 389          785500,
+ 390          785200,
+ 391          784900,
+ 392          784600,
+ 393          784300,
+ 394          784000,
+ 395          783700,
+ 396          783400,
+ 397          783100,
+ 398          782800,
+ 399          782500,
+ 400          782200,
+ 401          781900,
+ 402          781600,
+ 403          781300,
+ 404          781000,
+ 405          780700,
+ 406          780400,
+ 407          780100,
+ 408          779800,
+ 409          779500,
+ 410          779200,
+ 411          778900,
+ 412          778600,
+ 413          778300,
+ 414          778000,
+ 415          777700,
+ 416          777400,
+ 417          777100,
+ 418          776800,
+ 419          776500,
+ 420          776200,
+ 421          775900,
+ 422          775600,
+ 423          775300,
+ 424          775000,
+ 425          774700,
+ 426          774400,
+C51 COMPILER V9.53.0.0   UHF                                                               06/12/2020 15:05:40 PAGE 8   
+
+ 427          774100,
+ 428          773800,
+ 429          773500,
+ 430          773200,
+ 431          772900,
+ 432          772600,
+ 433          772300,
+ 434          772000,
+ 435          771700,
+ 436          771400,
+ 437          771100,
+ 438          770800,
+ 439          770500,
+ 440          770200,
+ 441          769900,
+ 442          769600,
+ 443          769300,
+ 444          769000,
+ 445          768700,
+ 446          768400,
+ 447          768100,
+ 448          767800,
+ 449          767500,
+ 450          767200,
+ 451          766900,
+ 452          766600,
+ 453          766300,
+ 454          766000,
+ 455          765700,
+ 456          765400,
+ 457          765100,
+ 458          764800,
+ 459          764500,
+ 460          764200,
+ 461          763900,
+ 462          763600,
+ 463          763300,
+ 464          763000,
+ 465          762700,
+ 466          762400,
+ 467          762100,
+ 468          761800,
+ 469          761500,
+ 470          761200,
+ 471          760900,
+ 472          760600,
+ 473          760300,
+ 474          
+ 475          };
+ 476          
+ 477          
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =    894    ----
-   CONSTANT SIZE    =   ----    ----
+   CODE SIZE        =    906    ----
+   CONSTANT SIZE    =    800    ----
    XDATA SIZE       =     19    ----
    PDATA SIZE       =   ----    ----
    DATA SIZE        =   ----       8
    IDATA SIZE       =   ----    ----
    BIT SIZE         =   ----    ----
    EDATA SIZE       =   ----    ----
+C51 COMPILER V9.53.0.0   UHF                                                               06/12/2020 15:05:40 PAGE 9   
+
    HDATA SIZE       =   ----    ----
    XDATA CONST SIZE =   ----    ----
    FAR CONST SIZE   =   ----    ----

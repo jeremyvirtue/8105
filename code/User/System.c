@@ -353,8 +353,7 @@ void SysStaDelay(void)
 				LcdClose();
 				if(LINE_EN)//如果此时插入充电线，那就进入充电状态，否则，INIT
 				{
-//					POWER= 0;
-//					GPIO_SET(P2MDL,GPIO_OP,2);//chip_en
+ 
 					SysState(BAT_CHARGE);
 					CHIP_EN_OUT;
 					CHIP_EN = Disable; 
@@ -367,6 +366,7 @@ void SysStaDelay(void)
 				SysState(RAIL_DIS);
 			break;
 			case UHF_CH:  
+				LedLightApi();
 				BPSKMode(order4); 
 				SysState(RAIL_DIS);	
 			break;
@@ -377,6 +377,7 @@ void SysStaDelay(void)
 				SysState(READY); 
 			break;
 			case SET_ID:   
+				LedLightApi();
 				BPSKMode(order4); 
 				SysState(RAIL_DIS);
 			break;
@@ -416,13 +417,13 @@ void SysStaDelay(void)
 ******************************************/
 void EnterStopMode(void)
 { 
+		IO_DeInit();  //不动5_0口
 		Delay_ms(100);
  
-		IO_DeInit();  
  
  
 	/*******************  key	**********************/
-		GPIO_SET(xP5MDL,GPIO_UI,0);// 
+//		GPIO_SET(xP5MDL,GPIO_UI,0);// 
 		GPIO_SET(P1MDL,GPIO_UI,1);// 
 		GPIO_SET(P1MDL,GPIO_UI,2);// 
 		GPIO_SET(P1MDL,GPIO_UI,3);// 
@@ -440,7 +441,6 @@ void EnterStopMode(void)
 	/*******************************/
 		
 /*************	0646	***************/
-//	POWER = 1; 
 	GPIO_SET(P2MDL,GPIO_PP,2);//chip_en
 	CHIP_EN = Enable;  
 	CHIP_EN = Disable;  
@@ -448,20 +448,15 @@ void EnterStopMode(void)
 	
 // 	/*************	other	***************/
  
-	GPIO_SET(P2MDL,GPIO_PP,1);
+	GPIO_SET(P2MDL,GPIO_PP,1);//POWER
 	POWER = 0; 
 		/*power
 		  line_en
 		*/
-	GPIO_SET(P0MDL,GPIO_OI,1);//mcu15
-//	GPIO_SET(P1MDL,GPIO_OI,1);
+	GPIO_SET(P0MDL,GPIO_OI,1);//充电判断引脚 为中断1做好准备
 	/*******************************/	
- 
-//	if(!LINE_EN)
-		stop_mode();
-//	else
-//		SysState(BAT_CHARGE);
- 
+  
+		stop_mode(); 
 }
 
 void StopDelay(void)

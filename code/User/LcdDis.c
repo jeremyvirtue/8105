@@ -235,31 +235,35 @@ void StartDis(void)
 void BatRead(void)
 {
 	static u8 twbat;
-	u16 bat_v;
+	float bat_v;
+	u16 ad;
+//	u16 bat_v;
 	if(Sdata.state != SHUTDOWN && Sdata.state != START )
 	{
 		if(!LINE_EN)
 		{
-			bat_v = Adc_Read();
-	//		ShowNumber(bat_v);
-	//		bat_v = (bat_v*11)/62; 
-			if(bat_v > 3352) //4.0
+			ad = Adc_Read();
+			bat_v = ad/(8.19);
+//			 
+			bat_v = bat_v-20;
+//			ShowNumber(bat_v); 
+			if(bat_v > 380) // 
 			{ 
 				ShowBattery(LCD_BATTERY_4);
 			}
-			else if(bat_v > 3220)//3.8
+			else if(bat_v > 360)// 
 			{ 
 				ShowBattery(LCD_BATTERY_3);
 			}
-			else if(bat_v > 3036)//3.6
+			else if(bat_v > 340)// 
 			{ 
 				ShowBattery(LCD_BATTERY_2);
 			}
-			else if(bat_v > 2900)//3.5
-			{ 
-				ShowBattery(LCD_BATTERY_1);
-			}
-			else if(bat_v > 2790)//3.3
+//			else if(bat_v > 2900)//3.5
+//			{ 
+//				ShowBattery(LCD_BATTERY_1);
+//			}
+			else if(bat_v > 320)//3.3
 			{
 				twbat = ~twbat;
 				if(twbat) { 
@@ -275,20 +279,20 @@ void BatRead(void)
 			}
 			else
 			{ 
-				KT0646mInit(); 
+//				KT0646mInit(); 
 			} 
 		}
 	
 		else if(LINE_EN)
-		{
-					bat_v = Adc_Read();
-	//		ShowNumber(bat_v);
-	//		bat_v = (bat_v*11)/62; 
-			if(bat_v > 3352) //4.1
+		{//+10
+			ad = Adc_Read();
+			bat_v = ad/(8.18); 
+//	     	ShowNumber(bat_v);
+			if(bat_v > 413) //4.1
 			{ 
 				ShowBattery(LCD_BATTERY_4);
 			}
-			else if(bat_v > 3220)//3.8
+			else if(bat_v > 390)//3.8
 			{ 
 				twbat = ~twbat;
 				if(twbat)
@@ -296,7 +300,7 @@ void BatRead(void)
 				else
 					ShowBattery(LCD_BATTERY_4);
 			}
-			else if(bat_v > 3036)//3.6 2∏Ò…¡À∏
+			else if(bat_v > 370)//3.6 2∏Ò…¡À∏
 			{ 
 				twbat = ~twbat;
 				if(twbat)
@@ -314,7 +318,7 @@ void BatRead(void)
 			}  
 			else
 			{ 
-				KT0646mInit(); 
+//				KT0646mInit(); 
 			} 
 		}
 	}
