@@ -244,6 +244,7 @@ void SysState(S_STATE state)
 		case START: 
 		break;
 		case READY:  
+			LED  = 1;//…œµÁ¡¡
 			BPSKMode(order1);
  			MuteLconDis();		
 			LockLconDis();
@@ -348,6 +349,7 @@ void SysStaDelay(void)
 				
 			break;	
 			case SHUTDOWN: 
+				LED= 0;
 				KT_WirelessMicTx_PASW(PA_OFF);
 				LcdClean();
 				LcdClose();

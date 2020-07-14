@@ -241,7 +241,7 @@ void BatRead(void)
 	if(Sdata.state != SHUTDOWN && Sdata.state != START )
 	{
 		if(!LINE_EN)
-		{
+		{ 
 			ad = Adc_Read();
 			bat_v = ad/(8.19);
 //			 
@@ -285,6 +285,7 @@ void BatRead(void)
 	
 		else if(LINE_EN)
 		{//+10
+			 
 			ad = Adc_Read();
 			bat_v = ad/(8.18); 
 //	     	ShowNumber(bat_v);

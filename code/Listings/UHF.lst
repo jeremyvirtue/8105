@@ -1,4 +1,4 @@
-C51 COMPILER V9.53.0.0   UHF                                                               06/12/2020 15:05:40 PAGE 1   
+C51 COMPILER V9.53.0.0   UHF                                                               07/14/2020 15:32:53 PAGE 1   
 
 
 C51 COMPILER V9.53.0.0, COMPILATION OF MODULE UHF
@@ -62,7 +62,7 @@ line level    source
   52          
   53          void VolLess(void)
   54          {       
-C51 COMPILER V9.53.0.0   UHF                                                               06/12/2020 15:05:40 PAGE 2   
+C51 COMPILER V9.53.0.0   UHF                                                               07/14/2020 15:32:53 PAGE 2   
 
   55   1              if(u_dat.vol  == VOLMIN)
   56   1              {
@@ -126,7 +126,7 @@ line level    source
  114          {
  115   1      //      FreqTune(FREQA_PUB);
  116   1              if(u_dat.ab)
-C51 COMPILER V9.53.0.0   UHF                                                               06/12/2020 15:05:40 PAGE 3   
+C51 COMPILER V9.53.0.0   UHF                                                               07/14/2020 15:32:53 PAGE 3   
 
  117   1              {
  118   2                      FreqTune(FREQB_PUB); 
@@ -190,7 +190,7 @@ line level    source
  176          void SaveData(void)
  177          {
  178   1              FlashWrite(FLASH_ID_CHANNEL,u_dat.channel);
-C51 COMPILER V9.53.0.0   UHF                                                               06/12/2020 15:05:40 PAGE 4   
+C51 COMPILER V9.53.0.0   UHF                                                               07/14/2020 15:32:53 PAGE 4   
 
  179   1              FlashWrite(FLASH_ID_VOLUME,u_dat.vol);
  180   1              FlashWrite(FLASH_ID_SYSTEMID,u_dat.id);
@@ -254,7 +254,7 @@ line level    source
  238          
  239          void AutoMuteDelay(void)
  240          { 
-C51 COMPILER V9.53.0.0   UHF                                                               06/12/2020 15:05:40 PAGE 5   
+C51 COMPILER V9.53.0.0   UHF                                                               07/14/2020 15:32:53 PAGE 5   
 
  241   1              if(u_dat.automute)
  242   1              {
@@ -318,7 +318,7 @@ line level    source
  300          738700,
  301          739000,
  302          739300,
-C51 COMPILER V9.53.0.0   UHF                                                               06/12/2020 15:05:40 PAGE 6   
+C51 COMPILER V9.53.0.0   UHF                                                               07/14/2020 15:32:53 PAGE 6   
 
  303          739600,
  304          739900,
@@ -382,7 +382,7 @@ line level    source
  362          757300,
  363          757600,
  364          757900,
-C51 COMPILER V9.53.0.0   UHF                                                               06/12/2020 15:05:40 PAGE 7   
+C51 COMPILER V9.53.0.0   UHF                                                               07/14/2020 15:32:53 PAGE 7   
 
  365          758200,
  366          758500,
@@ -446,7 +446,7 @@ line level    source
  424          775000,
  425          774700,
  426          774400,
-C51 COMPILER V9.53.0.0   UHF                                                               06/12/2020 15:05:40 PAGE 8   
+C51 COMPILER V9.53.0.0   UHF                                                               07/14/2020 15:32:53 PAGE 8   
 
  427          774100,
  428          773800,
@@ -510,7 +510,7 @@ MODULE INFORMATION:   STATIC OVERLAYABLE
    IDATA SIZE       =   ----    ----
    BIT SIZE         =   ----    ----
    EDATA SIZE       =   ----    ----
-C51 COMPILER V9.53.0.0   UHF                                                               06/12/2020 15:05:40 PAGE 9   
+C51 COMPILER V9.53.0.0   UHF                                                               07/14/2020 15:32:53 PAGE 9   
 
    HDATA SIZE       =   ----    ----
    XDATA CONST SIZE =   ----    ----

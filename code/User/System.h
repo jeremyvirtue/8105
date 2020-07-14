@@ -8,6 +8,8 @@
 #define LINE_EN		P01	//muc10
 #define AB			P10
 
+#define LED			P20
+
 
 typedef enum
 {

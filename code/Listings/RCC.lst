@@ -1,4 +1,4 @@
-C51 COMPILER V9.53.0.0   RCC                                                               06/09/2020 11:57:23 PAGE 1   
+C51 COMPILER V9.53.0.0   RCC                                                               07/14/2020 15:32:53 PAGE 1   
 
 
 C51 COMPILER V9.53.0.0, COMPILATION OF MODULE RCC
@@ -62,7 +62,7 @@ line level    source
   52          {
   53   1              u8 data temp;
   54   1              temp = MCKDIV&0xfb;     //bit2 = 0 : 使用内部RCH作为系统时钟源          
-C51 COMPILER V9.53.0.0   RCC                                                               06/09/2020 11:57:23 PAGE 2   
+C51 COMPILER V9.53.0.0   RCC                                                               07/14/2020 15:32:53 PAGE 2   
 
   55   1              WPKEY = 0x37;
   56   1              MCKDIV = temp;  
@@ -126,7 +126,7 @@ line level    source
  114          *   用TIM0定时5MS作系统心跳定时器
  115          *   SysClk = 8MHz
  116          */
-C51 COMPILER V9.53.0.0   RCC                                                               06/09/2020 11:57:23 PAGE 3   
+C51 COMPILER V9.53.0.0   RCC                                                               07/14/2020 15:32:53 PAGE 3   
 
  117          void SystemTimInit(void)
  118          {
@@ -190,7 +190,7 @@ line level    source
  176   1      }
  177          
  178          
-C51 COMPILER V9.53.0.0   RCC                                                               06/09/2020 11:57:23 PAGE 4   
+C51 COMPILER V9.53.0.0   RCC                                                               07/14/2020 15:32:53 PAGE 4   
 
  179          /**********************************************
  180                   Extern interrupt0 sever funtion 
@@ -254,7 +254,7 @@ line level    source
  238   1              xGPIODS1 = 0xFF;        
  239   1              P1MDH = 0xFF;
  240   1              P1MDL = 0xFF;
-C51 COMPILER V9.53.0.0   RCC                                                               06/09/2020 11:57:23 PAGE 5   
+C51 COMPILER V9.53.0.0   RCC                                                               07/14/2020 15:32:53 PAGE 5   
 
  241   1              P1    = 0x00;   
  242   1      //------------------------------
@@ -300,26 +300,27 @@ line level    source
  282   1      //      GPIO_SET(P2MDL,GPIO_UI,0);// CHARGE_EN  
  283   1              GPIO_SET(P0MDL,GPIO_OI,1);// LINE_EN    
  284   1              GPIO_SET(P1MDL,GPIO_UI,0);// AB         
- 285   1      }
- 286          
+ 285   1              GPIO_SET(P2MDL,GPIO_PP,0);// LED P20
+ 286   1      }
  287          
  288          
  289          
  290          
  291          
+ 292          
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =    604    ----
+   CODE SIZE        =    612    ----
    CONSTANT SIZE    =   ----    ----
    XDATA SIZE       =   ----    ----
    PDATA SIZE       =   ----    ----
    DATA SIZE        =      1    ----
    IDATA SIZE       =   ----    ----
    BIT SIZE         =   ----    ----
-   EDATA SIZE       =   ----    ----
-C51 COMPILER V9.53.0.0   RCC                                                               06/09/2020 11:57:23 PAGE 6   
+C51 COMPILER V9.53.0.0   RCC                                                               07/14/2020 15:32:53 PAGE 6   
 
+   EDATA SIZE       =   ----    ----
    HDATA SIZE       =   ----    ----
    XDATA CONST SIZE =   ----    ----
    FAR CONST SIZE   =   ----    ----
